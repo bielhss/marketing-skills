@@ -30,7 +30,7 @@ designed to be exported as an individual 1080×1350px PNG for Instagram.
 5. **Font preference** — see typography table below, or specific Google Fonts
 6. **Tone** — accessible consultative tone, demonstrate technical expertise, but like a close colleague who understands the challenges, not a distant specialist.
 7. **Images** — screenshots, product images, etc.
-8. **Profile photo** https://raw.githubusercontent.com/bielhss/marketing-skills/refs/heads/main/instagram-carousel/assets/icon%20logo.png
+  1. profile photo - https://raw.githubusercontent.com/bielhss/marketing-skills/refs/heads/main/instagram-carousel/assets/icon%20logo.png
 9. **Idioma dos slides** — default: **Português (BR)** 
 10. **Carousel format** — standard (7 slides) or alternate sequence (see sequences section)
 
