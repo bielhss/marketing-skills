@@ -21,16 +21,18 @@ designed to be exported as an individual 1080×1350px PNG for Instagram.
 
 ## Step 1: Collect Brand Details
 
-Before generating, ask the user for the following (if not already provided):
+<!-- Before generating, ask the user for the following (if not already provided): -->
 
-1. **Brand name** — displayed on first and last slides
-2. **Instagram handle** — shown in the IG frame header
-3. **Primary brand color** — hex code, or describe and Claude picks one
+1. **Brand name** — rpa teste
+2. **Instagram handle** — rpatestesimp
+3. **Primary brand color** — #221a4a, #51515a, #ff6e00, #00b1bc, 
 4. **Logo** — SVG path, brand initial, or skip
+  2. **Skill folder `assets/`** — if not found above, check the skill's own assets folder at `~/.claude/skills/instagram-carousel/assets/`
 5. **Font preference** — see typography table below, or specific Google Fonts
-6. **Tone** — professional, casual, playful, bold, minimal, etc.
+6. **Tone** — accessible consultative tone, demonstrate technical expertise, but like a close colleague who understands the challenges, not a distant specialist.
 7. **Images** — profile photo, screenshots, product images, etc.
-8. **Idioma dos slides** — default: **Português (BR)** unless specified otherwise
+   2. **Skill folder `assets/`** — if not found above, check the skill's own assets folder at `~/.claude/skills/instagram-carousel/assets/` use the icon-logo
+8. **Idioma dos slides** — default: **Português (BR)** 
 9. **Carousel format** — standard (7 slides) or alternate sequence (see sequences section)
 
 If the user provides a website URL or brand assets, derive colors and style from those.
