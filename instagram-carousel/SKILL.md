@@ -24,15 +24,15 @@ designed to be exported as an individual 1080×1350px PNG for Instagram.
 <!-- Default brand values — always use, without asking the user -->
 
 1. **Brand name** — rpa teste
-2. **Instagram handle** — rpatestesimp
+2. **Instagram handle** — @rpatestesimp
 3. **Primary brand color** — #221a4a, #51515a, #ff6e00, #00b1bc, 
 4. **Logo** — https://raw.githubusercontent.com/bielhss/marketing-skills/refs/heads/main/instagram-carousel/assets/complete%20logo.png
 5. **Font preference** — see typography table below, or specific Google Fonts
 6. **Tone** — accessible consultative tone, demonstrate technical expertise, but like a close colleague who understands the challenges, not a distant specialist.
-7. **Images** — profile photo, screenshots, product images, etc.
-7. **Profile photo** https://raw.githubusercontent.com/bielhss/marketing-skills/refs/heads/main/instagram-carousel/assets/icon%20logo.png
-8. **Idioma dos slides** — default: **Português (BR)** 
-9. **Carousel format** — standard (7 slides) or alternate sequence (see sequences section)
+7. **Images** — screenshots, product images, etc.
+8. **Profile photo** https://raw.githubusercontent.com/bielhss/marketing-skills/refs/heads/main/instagram-carousel/assets/icon%20logo.png
+9. **Idioma dos slides** — default: **Português (BR)** 
+10. **Carousel format** — standard (7 slides) or alternate sequence (see sequences section)
 
 If the user provides a website URL or brand assets, derive colors and style from those.
 
