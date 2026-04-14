@@ -21,23 +21,21 @@ designed to be exported as an individual 1080×1350px PNG for Instagram.
 
 ## Step 1: Collect Brand Details
 
-<!-- Before generating, ask the user for the following (if not already provided): -->
+<!-- Default brand values — always use, without asking the user -->
 
 1. **Brand name** — rpa teste
 2. **Instagram handle** — rpatestesimp
 3. **Primary brand color** — #221a4a, #51515a, #ff6e00, #00b1bc, 
-4. **Logo** — SVG path, brand initial, or skip
-  2. **Skill folder `assets/`** — if not found above, check the skill's own assets folder at `~/.claude/skills/instagram-carousel/assets/`
+4. **Logo** — https://raw.githubusercontent.com/bielhss/marketing-skills/refs/heads/main/instagram-carousel/assets/complete%20logo.png
 5. **Font preference** — see typography table below, or specific Google Fonts
 6. **Tone** — accessible consultative tone, demonstrate technical expertise, but like a close colleague who understands the challenges, not a distant specialist.
 7. **Images** — profile photo, screenshots, product images, etc.
-   2. **Skill folder `assets/`** — if not found above, check the skill's own assets folder at `~/.claude/skills/instagram-carousel/assets/` use the icon-logo
+7. **Profile photo** https://raw.githubusercontent.com/bielhss/marketing-skills/refs/heads/main/instagram-carousel/assets/icon%20logo.png
 8. **Idioma dos slides** — default: **Português (BR)** 
 9. **Carousel format** — standard (7 slides) or alternate sequence (see sequences section)
 
 If the user provides a website URL or brand assets, derive colors and style from those.
 
-If the user says "make me a carousel about X" without brand details, ask before generating. Don't assume defaults.
 
 ---
 
