@@ -1,11 +1,11 @@
 ---
 name: instagram-carousel
 description: >
-  Creates high-quality Instagram carousels as swipeable HTML previews with
-  export-ready slides (1080×1350px PNG). Handles the full workflow: brand
-  setup, slide copy, visual design system (colors, fonts, components), HTML
-  generation, and Playwright-based export. Use this skill whenever the user
-  asks to create, design, or generate an Instagram carousel, carrossel,
+  Creates high-quality Instagram carousels as individual export-ready HTML files
+  (1080×1350px), one file per slide, ready for PNG conversion via html2png.dev.
+  Handles the full workflow: brand setup, slide copy, visual design system
+  (colors, fonts, components), and HTML generation. Use this skill whenever the
+  user asks to create, design, or generate an Instagram carousel, carrossel,
   slides para Instagram, or any Instagram multi-image post — even if they
   don't explicitly say "carousel" or "skill". Also trigger for requests to
   "create a post with multiple slides", "fazer carrossel", or "exportar slides
@@ -14,8 +14,8 @@ description: >
 
 # Instagram Carousel Generator
 
-Generates fully self-contained, swipeable HTML carousels where every slide is
-designed to be exported as an individual 1080×1350px PNG for Instagram.
+Generates fully self-contained HTML files — one per slide — at exactly
+1080×1350px, ready to be converted to PNG via html2png.dev.
 
 ---
 
@@ -227,22 +227,24 @@ Use for: "X ferramentas", "X erros", "X dicas"
 ## Slide Architecture
 
 ### Format
-- Aspect ratio: **4:5** (Instagram carousel standard)
-- Each slide is self-contained — all UI elements baked into the image
+- Dimensions: **1080×1350px** (Instagram carousel standard, 4:5)
+- Each slide is a **standalone HTML file** — `slide_1.html`, `slide_2.html`, etc.
+- Each file is self-contained: no JavaScript, no interactivity, no wrapper chrome
+- All slides use `width:1080px; height:1350px` fixed in the `<body>` and root container
 - Alternate LIGHT_BG and DARK_BG backgrounds for visual rhythm
 
 ### Required Elements on Every Slide
 
 #### 1. Progress Bar (bottom of every slide)
 
-Shows position in the carousel. Fills as user swipes.
+Shows position in the carousel. Fixed fill per slide.
 
-- Position: absolute bottom, full width, 28px horizontal padding, 20px bottom padding
-- Track: 3px height, rounded corners
+- Position: absolute bottom, full width, 60px horizontal padding, 40px bottom padding
+- Track: 6px height, rounded corners
 - Fill width: `((slideIndex + 1) / totalSlides) * 100%`
 - Light slides: `rgba(0,0,0,0.08)` track, `BRAND_PRIMARY` fill, `rgba(0,0,0,0.3)` counter
 - Dark slides: `rgba(255,255,255,0.12)` track, `#fff` fill, `rgba(255,255,255,0.4)` counter
-- Counter label beside the bar: "1/7" format, 11px, weight 500
+- Counter label beside the bar: "1/7" format, 22px, weight 500
 
 ```javascript
 function progressBar(index, total, isLightSlide) {
@@ -250,11 +252,11 @@ function progressBar(index, total, isLightSlide) {
   const trackColor = isLightSlide ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.12)';
   const fillColor = isLightSlide ? BRAND_PRIMARY : '#fff'; // use actual BRAND_PRIMARY value
   const labelColor = isLightSlide ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.4)';
-  return `<div style="position:absolute;bottom:0;left:0;right:0;padding:16px 28px 20px;z-index:10;display:flex;align-items:center;gap:10px;">
-    <div style="flex:1;height:3px;background:${trackColor};border-radius:2px;overflow:hidden;">
-      <div style="height:100%;width:${pct}%;background:${fillColor};border-radius:2px;"></div>
+  return `<div style="position:absolute;bottom:0;left:0;right:0;padding:32px 60px 40px;z-index:10;display:flex;align-items:center;gap:20px;">
+    <div style="flex:1;height:6px;background:${trackColor};border-radius:4px;overflow:hidden;">
+      <div style="height:100%;width:${pct}%;background:${fillColor};border-radius:4px;"></div>
     </div>
-    <span style="font-size:11px;color:${labelColor};font-weight:500;">${index + 1}/${total}</span>
+    <span style="font-size:22px;color:${labelColor};font-weight:500;">${index + 1}/${total}</span>
   </div>`;
 }
 ```
@@ -265,9 +267,9 @@ function progressBar(index, total, isLightSlide) {
 
 Subtle chevron guiding the user to keep swiping. Removed on the last slide.
 
-- Position: absolute right, full height, 48px wide
+- Position: absolute right, full height, 100px wide
 - Background: gradient fade transparent → subtle tint
-- Chevron: 24×24 SVG, rounded strokes
+- Chevron: 48×48 SVG, rounded strokes
 - Light slides: `rgba(0,0,0,0.06)` bg, `rgba(0,0,0,0.25)` stroke
 - Dark slides: `rgba(255,255,255,0.08)` bg, `rgba(255,255,255,0.35)` stroke
 
@@ -275,8 +277,8 @@ Subtle chevron guiding the user to keep swiping. Removed on the last slide.
 function swipeArrow(isLightSlide) {
   const bg = isLightSlide ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)';
   const stroke = isLightSlide ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.35)';
-  return `<div style="position:absolute;right:0;top:0;bottom:0;width:48px;z-index:9;display:flex;align-items:center;justify-content:center;background:linear-gradient(to right,transparent,${bg});">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+  return `<div style="position:absolute;right:0;top:0;bottom:0;width:100px;z-index:9;display:flex;align-items:center;justify-content:center;background:linear-gradient(to right,transparent,${bg});">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
       <path d="M9 6l6 6-6 6" stroke="${stroke}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
   </div>`;
@@ -356,142 +358,79 @@ function swipeArrow(isLightSlide) {
 
 ## Layout Rules
 
-- Content padding: `0 36px` standard
-- Bottom-aligned slides with progress bar: `0 36px 52px` to clear the bar
+- Content padding: `0 72px` standard (scales with 1080px width)
+- Bottom-aligned slides with progress bar: `0 72px 100px` to clear the bar
 - **Hero/CTA slides:** `justify-content: center`
 - **Content-heavy slides:** `justify-content: flex-end`
-- **Content must never overlap the progress bar** — use `padding-bottom: 52px`
+- **Content must never overlap the progress bar** — use `padding-bottom: 100px`
 
 ---
 
-## Instagram Frame (Preview Wrapper)
+## HTML File Structure (per slide)
 
-When displaying in chat, wrap in an Instagram-style frame:
+Each slide is exported as an individual, fully self-contained HTML file with no JavaScript, no interactivity, and no Instagram chrome. The file is designed to be captured by html2png.dev at exactly 1080×1350px.
 
-- **Header:** Avatar (BRAND_PRIMARY circle + logo) + handle + subtitle
-- **Viewport:** 4:5 aspect ratio, swipeable/draggable track with all slides
-- **Dots:** Small dot indicators below the viewport
-- **Actions:** Heart, comment, share, bookmark SVG icons
-- **Caption:** Handle + short description + "2 HOURS AGO" timestamp
-
-Include pointer-based swipe/drag interaction for preview. Slides are still standalone export-ready images.
-
-**Important:** `.ig-frame` must be exactly **420px wide**. The carousel viewport is 420×525px. Do NOT change this width — export depends on it.
-
----
-
-## Review Flow
-
-**Always follow this flow. Never skip to export without approval.**
-
-1. Generate the HTML preview first — never jump directly to export
-2. Show the preview and ask: **"Quais slides precisam de ajuste antes de exportar?"**
-3. Fix only the mentioned slides — never regenerate the entire carousel unless the direction fundamentally changes
-4. Only proceed to export when the user explicitly confirms approval (e.g., "pode exportar", "aprovado", "ok")
-
----
-
-## Exporting Slides as Instagram-Ready PNGs
-
-After the user approves the carousel preview, export each slide as an individual **1080×1350px PNG**.
-
-### Critical Export Rules
-
-1. **Use Python for HTML generation** — never use shell scripts with variable interpolation. Always use `Path.write_text()` or `open().write()`.
-
-2. **Embed images as base64** — all user-uploaded images must be base64-encoded as `data:image/jpeg;base64,...` URIs. Check actual file format with the `file` command — a `.png` extension may contain a JPEG.
-
-3. **Keep the 420px layout width** — use Playwright's `device_scale_factor` to scale up to 1080px output WITHOUT changing the layout viewport.
-
-### Install Playwright (only if needed)
-
-Before running the export script, check and install only if missing:
-
-```bash
-python3 -c "import playwright" 2>/dev/null || pip3 install playwright
-python3 -c "from playwright.sync_api import sync_playwright; sync_playwright().__enter__().chromium" 2>/dev/null || python3 -m playwright install chromium
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family={HEADING_FONT}:wght@300;600;700&family={BODY_FONT}:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 1080px;
+      height: 1350px;
+      overflow: hidden;
+      background: {SLIDE_BG};
+    }
+    .slide {
+      position: relative;
+      width: 1080px;
+      height: 1350px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end; /* or center for hero/CTA */
+      padding: 0 72px 100px;
+      overflow: hidden;
+    }
+    .serif { font-family: '{HEADING_FONT}', serif; }
+    .sans  { font-family: '{BODY_FONT}', sans-serif; }
+  </style>
+</head>
+<body>
+  <div class="slide">
+    <!-- slide content here -->
+    <!-- progress bar -->
+    <!-- swipe arrow (all slides except last) -->
+  </div>
+</body>
+</html>
 ```
 
-### Export Script
+### Output files
+- Name files sequentially: `slide_1.html`, `slide_2.html`, ..., `slide_N.html`
+- Generate all files to `/home/claude/` and copy to `/mnt/user-data/outputs/`
+- Use Python `Path.write_text()` — never shell heredocs (breaks base64 strings)
 
-```python
-import asyncio
-from pathlib import Path
-from playwright.async_api import async_playwright
+---
 
-INPUT_HTML = Path("/path/to/carousel.html")
-OUTPUT_DIR = Path("/path/to/output/slides")
-OUTPUT_DIR.mkdir(exist_ok=True)
+## Generation Flow
 
-TOTAL_SLIDES = 7  # Update to match your carousel
+1. Generate all slide HTML files directly — one file per slide
+2. Save each to `/mnt/user-data/outputs/slide_N.html`
+3. Present all files to the user when done
 
-VIEW_W = 420
-VIEW_H = 525
-SCALE = 1080 / 420  # = 2.5714...
+---
 
-async def export_slides():
-    async with async_playwright() as p:
-        browser = await p.chromium.launch()
-        page = await browser.new_page(
-            viewport={"width": VIEW_W, "height": VIEW_H},
-            device_scale_factor=SCALE,
-        )
+## Converting to PNG
 
-        html_content = INPUT_HTML.read_text(encoding="utf-8")
-        await page.set_content(html_content, wait_until="networkidle")
-        await page.wait_for_timeout(3000)  # Wait for Google Fonts to load
+After the HTML files are generated, use **html2png.dev** (or equivalent) to convert each `slide_N.html` to a PNG. No Playwright or local rendering is needed.
 
-        # Hide IG frame chrome, show only the slide viewport
-        await page.evaluate("""() => {
-            document.querySelectorAll('.ig-header,.ig-dots,.ig-actions,.ig-caption')
-                .forEach(el => el.style.display='none');
-
-            const frame = document.querySelector('.ig-frame');
-            frame.style.cssText = 'width:420px;height:525px;max-width:none;border-radius:0;box-shadow:none;overflow:hidden;margin:0;';
-
-            const viewport = document.querySelector('.carousel-viewport');
-            viewport.style.cssText = 'width:420px;height:525px;aspect-ratio:unset;overflow:hidden;cursor:default;';
-
-            document.body.style.cssText = 'padding:0;margin:0;display:block;overflow:hidden;';
-        }""")
-        await page.wait_for_timeout(500)
-
-        for i in range(TOTAL_SLIDES):
-            await page.evaluate("""(idx) => {
-                const track = document.querySelector('.carousel-track');
-                track.style.transition = 'none';
-                track.style.transform = 'translateX(' + (-idx * 420) + 'px)';
-            }""", i)
-            await page.wait_for_timeout(400)
-
-            await page.screenshot(
-                path=str(OUTPUT_DIR / f"slide_{i+1}.png"),
-                clip={"x": 0, "y": 0, "width": VIEW_W, "height": VIEW_H}
-            )
-            print(f"Exported slide {i+1}/{TOTAL_SLIDES}")
-
-        await browser.close()
-
-asyncio.run(export_slides())
-```
-
-### Why This Works
-
-- **`device_scale_factor=2.5714`** renders at high DPI — a 420px element becomes 1080px in the output. Layout stays at 420px.
-- **`clip`** captures only the carousel viewport, not browser chrome.
-- **`wait_for_timeout(3000)`** gives Google Fonts time to load.
-- **`track.style.transition = 'none'`** disables swipe animation so slides snap instantly.
-
-### Common Export Mistakes to Avoid
-
-| Mistake | What goes wrong | Fix |
-|---------|----------------|-----|
-| Setting viewport to 1080×1350 | Layout reflows — fonts tiny, spacing breaks | Keep viewport at 420×525, use `device_scale_factor` |
-| Using shell scripts to generate HTML | `$` signs and backticks get interpolated | Always use Python for HTML generation |
-| Not waiting for fonts | Headings render in fallback system fonts | `wait_for_timeout(3000)` after page load |
-| Not hiding IG frame chrome | Export includes header, dots, caption | Hide `.ig-header,.ig-dots,.ig-actions,.ig-caption` |
-| Changing `.ig-frame` width | Entire layout shifts | Always keep at exactly 420px |
-| Leaving `BRAND_PRIMARY` as variable name in CSS | Color renders as invalid / invisible | Always interpolate actual hex values into HTML |
+- Capture dimensions: **1080×1350px**
+- Each HTML file is already sized correctly — no scaling needed
+- Fonts load from Google Fonts CDN; ensure the converter allows external requests
 
 ---
 
@@ -506,4 +445,4 @@ asyncio.run(export_slides())
 7. **Consistent components** — same tag style, list style, spacing across all slides
 8. **Content padding clears UI** — body text never overlaps progress bar or arrow
 9. **Hook-first copy** — Slide 1 exists to stop the scroll, not to introduce the brand
-10. **Iterate fast** — show preview, fix specific slides, don't rebuild from scratch
+10. **One file per slide** — each HTML is standalone and ready for html2png.dev conversion
