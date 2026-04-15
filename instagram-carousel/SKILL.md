@@ -143,11 +143,11 @@ Based on the user's font preference, pick a **heading font** and **body font** f
 | Rounded / friendly | Bricolage Grotesque | Bricolage Grotesque |
 
 **Font size scale (fixed across all brands):**
-- Headings: 56–64px, weight 700, line-height 1.08–1.12
-- Body: 24–30px, weight 400–500, line-height 1.35–1.45
-- Tags/labels: 14–16px, weight 700, letter-spacing 2–3px
+- Headings: 80–120px, weight 700, line-height 1.08–1.12
+- Body: 32–44px, weight 400–500, line-height 1.35–1.45
+- Tags/labels: 18–22px, weight 700, letter-spacing 2–3px
 - Step numbers: heading font, 26px, weight 300
-- Small text: 18–20px
+- Small text: 22–26px
 
 Apply via CSS classes `.serif` (heading font) and `.sans` (body font) throughout all slides.
 
