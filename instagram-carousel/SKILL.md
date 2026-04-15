@@ -143,11 +143,11 @@ Based on the user's font preference, pick a **heading font** and **body font** f
 | Rounded / friendly | Bricolage Grotesque | Bricolage Grotesque |
 
 **Font size scale (fixed across all brands):**
-- Headings: 28–34px, weight 600, letter-spacing -0.3 to -0.5px, line-height 1.1–1.15
-- Body: 14px, weight 400, line-height 1.5–1.55
-- Tags/labels: 10px, weight 600, letter-spacing 2px, uppercase
+- Headings: 56–64px, weight 700, line-height 1.08–1.12
+- Body: 24–30px, weight 400–500, line-height 1.35–1.45
+- Tags/labels: 14–16px, weight 700, letter-spacing 2–3px
 - Step numbers: heading font, 26px, weight 300
-- Small text: 11–12px
+- Small text: 18–20px
 
 Apply via CSS classes `.serif` (heading font) and `.sans` (body font) throughout all slides.
 
@@ -171,6 +171,31 @@ The first slide must stop the scroll in under 1 second. Prioritize these formats
 - Hook must promise value that the following slides deliver
 
 ---
+
+## Typography Scaling Rule (CRITICAL)
+
+This system is NOT web-based. All typography must be optimized for Instagram viewing on mobile devices.
+
+- Text must be readable at arm’s length on a phone
+- Prioritize large, bold headlines
+- Reduce text density instead of shrinking font size
+- Prefer fewer words over smaller typography
+
+If content does not fit:
+→ REMOVE content
+→ NEVER reduce font size below defined scale
+---
+
+## Content Density Rules
+
+- Maximum 3 bullet points per slide
+- Maximum 2 lines per bullet point
+- Maximum 6–8 total lines of text per slide
+
+If content exceeds limits:
+→ Split into more slides
+→ OR simplify text
+→ NEVER compress layout
 
 ## Slide Sequences
 
@@ -366,6 +391,24 @@ function swipeArrow(isLightSlide) {
 
 ---
 
+## Layout Rules Update
+
+- Default vertical alignment: center
+- Use flex-end ONLY for dense content slides
+- Prefer visual balance over strict structure
+
+---
+
+## Line Break Optimization
+
+Headlines should be manually broken into 2–3 lines for better visual rhythm.
+
+Avoid long single-line headings.
+
+Example:
+❌ "Por que unir IA e RPA?"
+✅ "Por que unir\nIA e RPA?"
+
 ## HTML File Structure (per slide)
 
 Each slide is exported as an individual, fully self-contained HTML file with no JavaScript, no interactivity, and no Instagram chrome. The file is designed to be captured by html2png.dev at exactly 1080×1350px.
@@ -392,7 +435,7 @@ Each slide is exported as an individual, fully self-contained HTML file with no 
       display: flex;
       flex-direction: column;
       justify-content: flex-end; /* or center for hero/CTA */
-      padding: 0 72px 100px;
+      padding: 120px 90px 140px
       overflow: hidden;
     }
     .serif { font-family: '{HEADING_FONT}', serif; }
