@@ -43,47 +43,22 @@ If the user provides a website URL or brand assets, derive colors and style from
 
 ### API Setup
 
-The Unsplash API key is injected by n8n into the system prompt as a plain text line in this format:
-```
-Unsplash API Key: 926582kIHOqYSR-Dl43mr8JxrPouwnfabkJXjibDJB41mraXQ
-```
+Images are fetched via a **Search Unsplash tool** connected to the AI Agent in n8n. The agent calls this tool directly — no Python, no API key in the prompt.
 
-**⚠️ When writing the Python code, you MUST read the actual key value from the system prompt context and hardcode it into the `UNSPLASH_KEY` variable.** Do not copy the placeholder — copy the real key string that is visible in your context window.
+**⚠️ CRITICAL: Never invent or guess Unsplash URLs.** You have no ability to execute code. You MUST call the `Search Unsplash` tool to get real image URLs. A fabricated URL like `images.unsplash.com/photo-automation` will always fail to load.
 
-If the system prompt contains `Unsplash API Key: abc123xyz`, then your Python must have:
-```python
-UNSPLASH_KEY = "abc123xyz"
-```
+**How to call the tool:**
+- Tool name: `Search Unsplash` (or whatever the tool is named in your context)
+- Parameters: `query` (string) and `orientation` (`landscape`, `portrait`)
+- The tool returns a JSON response — extract `results[0].urls.regular` as the image URL
+- If the tool returns no results or errors → render the slide without image (do not invent a URL)
 
-Never leave `UNSPLASH_KEY` as a placeholder string. If you cannot find the key in the context, set `UNSPLASH_KEY = ""` and skip image fetching entirely.
+**How the tool is configured in n8n:**
+- HTTP GET to `https://api.unsplash.com/search/photos`
+- Query params: `query`, `orientation`, `per_page=5`, `order_by=relevant`
+- Header: `Authorization: Client-ID {ACCESS_KEY}`, `Accept-Version: v1`
 
-```python
-import urllib.request
-import urllib.parse
-import json
-
-# The key is injected by n8n into the system prompt as {{ $credentials.unsplash_key }}
-# When writing the Python code, replace the placeholder below with the actual value
-# that was injected — it will be visible in the conversation context as a string.
-# ⚠️ CRITICAL: Read the Unsplash API Key from the system prompt context.
-# The key was injected as: "Unsplash API Key: <value>"
-# Extract the actual key value from that line and assign it here — never leave it as a placeholder.
-# Example: if system prompt contains "Unsplash API Key: 926582kIH..." then:
-UNSPLASH_KEY = "<extract_the_actual_key_value_from_system_prompt_context>"
-```
-
-**How to configure in n8n:**
-1. In the AI Agent node, open the **System Prompt**
-2. Create a credential of type **Header Auth** in n8n with:
-   - Name: `unsplash_key` (or any name you prefer)
-   - Value: your Unsplash Access Key
-3. Reference it in the system prompt with an expression:
-   ```
-   Unsplash API Key: {{ $credentials.unsplash_key.value }}
-   ```
-4. The agent will receive the key as plain text in its context and use it when following this skill
-
-If `UNSPLASH_KEY` is empty or missing from the context, skip all image fetching silently and generate slides without images — never raise an error or halt generation.
+If the `Search Unsplash` tool is not available in your context, skip all image fetching silently and generate slides without images — never raise an error or halt generation.
 
 ### Which slides get images
 
@@ -175,13 +150,13 @@ First classify (abstract or physical), then write a query following the same pat
 
 ---
 
-#### Rule 3 — Self-check before every fetch_unsplash() call
+#### Rule 3 — Self-check before every `Search Unsplash` tool call
 
 Ask internally:
 > "If I search this exact phrase on Unsplash, will the top results clearly illustrate what THIS SLIDE is specifically about — and match the abstract/physical classification I chose?"
 
 - "Yes, clearly" → proceed
-- "Maybe / probably not" → rewrite or return `None`
+- "Maybe / probably not" → rewrite the query or skip image for this slide
 
 ---
 
@@ -210,69 +185,30 @@ Ask internally:
 
 ### How to fetch an image
 
-```python
-def fetch_unsplash(query: str, orientation: str = "landscape") -> str | None:
-    """
-    Fetches an image URL from Unsplash.
+**You have no Python executor. You MUST use the `Search Unsplash` tool for every image.** Never write or simulate Python — call the tool directly.
 
-    orientation:
-      - 'portrait'   → Hero full-background slides only
-      - 'landscape'  → C1 and C2 image-top layouts (default for all content slides)
+**Fetch sequence for each image slide (run ALL fetches before writing any HTML):**
 
-    Always run the Image Type Decision and Query Strategy rules before calling.
-    Illustration queries (ending in 'flat illustration') work with any orientation.
-    Returns None on any failure — caller must handle gracefully.
-    """
-    if not UNSPLASH_KEY or UNSPLASH_KEY.startswith("<extract"):  # guard: key was not properly set
-        return None
-    try:
-        params = urllib.parse.urlencode({
-            "query": query,
-            "orientation": orientation,
-            "per_page": 5,       # fetch 5, pick the most relevant-looking result
-            "order_by": "relevant"
-        })
-        url = f"https://api.unsplash.com/search/photos?{params}"
-        req = urllib.request.Request(url, headers={
-            "Authorization": f"Client-ID {UNSPLASH_KEY}",
-            "Accept-Version": "v1"
-        })
-        with urllib.request.urlopen(req, timeout=8) as resp:
-            data = json.loads(resp.read())
-            results = data.get("results", [])
-            if results:
-                return results[0]["urls"]["regular"]
-    except Exception:
-        pass
-    return None
+1. Classify the slide topic (abstract or physical) — see Image Type Decision above
+2. Pick the query from the library (Rule 1) or derive it (Rule 2)
+3. Call `Search Unsplash` tool with the query and orientation:
+   - Hero slide → `orientation: portrait`
+   - All C1/C2/C3 slides → `orientation: landscape`
+4. From the tool response, extract `results[0].urls.regular` — this is the image URL
+5. If tool returns empty results or fails → use `null` for that slide (no image)
 
+**Example tool calls for an RPA+IA carousel:**
 
-# ── Image fetch plan — run BEFORE building any HTML ──────────────────────
-# For each slide that gets an image:
-#   1. Classify topic: abstract → illustration query / physical → photo query
-#   2. Pick query from library or derive following the rules
-#   3. Call fetch_unsplash() with appropriate orientation
-#   4. Store result; None = render that slide without image
+| Slide | Query | Orientation |
+|---|---|---|
+| Hero (slide 1) | `robot arm factory conveyor` | `portrait` |
+| Solution (slide 3) | `automation workflow flat illustration` | `landscape` |
+| Features (slide 4) | `productivity efficiency flat illustration` | `landscape` |
+| How-to (slide 6) | `workflow process flat illustration` | `landscape` |
 
-# Example for a RPA+IA carousel:
-images = {
-    # Hero (slide 1) — physical: robot/automation hardware, portrait
-    "hero":     fetch_unsplash("robot arm factory conveyor", orientation="portrait"),
+Replace these example queries with ones matching the actual carousel topic, following the pre-validated library in the Query Strategy section above.
 
-    # Solution (slide 3) — abstract: concept, landscape for C1 top-banner
-    "solution": fetch_unsplash("automation workflow flat illustration", orientation="landscape"),
-
-    # Features (slide 4) — depends on specific features listed:
-    #   if features are abstract concepts → illustration
-    #   if features involve physical things (docs, screens) → photo
-    "features": fetch_unsplash("productivity efficiency flat illustration", orientation="landscape"),
-
-    # How-to (slide 6) — landscape for C1 top-banner
-    "howto":    fetch_unsplash("workflow process flat illustration", orientation="landscape"),
-}
-# C1 and C2 layouts always use landscape orientation — wide images fill the top banner better
-# Adjust queries per carousel topic — these are examples for RPA+IA theme
-```
+⚠️ **Make all tool calls upfront, before writing any HTML.** Store the returned URLs, then build all slides.
 
 ---
 
@@ -309,7 +245,7 @@ When using a dark overlay on the Hero:
      alt="logo">
 ```
 
-If `fetch_unsplash()` returns `None` for the Hero, fall back to `LIGHT_BG` background — no overlay needed.
+If the `Search Unsplash` tool returns no results for the Hero, fall back to `LIGHT_BG` background — no overlay needed.
 
 ### B — Image layouts (Solution + Content slides)
 
@@ -451,7 +387,7 @@ def pick_layout(previous_layout: str | None = None) -> str:
 5. **Progress bar lives on `.slide`** (`position:absolute;bottom:0;z-index:10`) — never inside a card or text wrapper
 6. **C2 card: `bottom:100px` is non-negotiable** — ensures progress bar is always visible
 7. **C3 progress bar**: use white track `rgba(255,255,255,0.2)` and white fill `#fff` — it sits over the image
-8. **No image fallback**: if `fetch_unsplash()` returns `None` → remove image tag entirely, set `.slide` to `justify-content:center; padding:100px 90px 140px`, render full-width text
+8. **No image fallback**: if `Search Unsplash` tool returns no results → remove image tag entirely, set `.slide` to `justify-content:center; padding:100px 90px 140px`, render full-width text
 9. **Always add `onerror` on every `<img>` tag for C1/C2/C3 layouts** — when the image fails to load, hide it AND reposition the text to fill the full slide:
 
 ```html
@@ -785,72 +721,45 @@ Rules:
 
 ## Generation Flow
 
-### Step 1 — Classify topics and fetch all Unsplash images upfront
+### Step 1 — Pick layouts, fetch all images upfront via tool
 
-Before writing any HTML, run the classification and fetch for every slide that needs an image.
+**⚠️ You cannot execute Python. Do NOT write or simulate code. Follow these steps directly.**
 
-```python
-import json, urllib.request, urllib.parse, random
-from pathlib import Path
+---
 
-# Key injected by n8n system prompt — replace placeholder with actual value
-# ⚠️ CRITICAL: Read the Unsplash API Key from the system prompt context.
-# The key was injected as: "Unsplash API Key: <value>"
-# Extract the actual key value from that line and assign it here — never leave it as a placeholder.
-# Example: if system prompt contains "Unsplash API Key: 926582kIH..." then:
-UNSPLASH_KEY = "<extract_the_actual_key_value_from_system_prompt_context>"
+**A — Pick a random layout for each image slide**
 
-def fetch_unsplash(query: str, orientation: str = "landscape") -> str | None:
-    if not UNSPLASH_KEY or UNSPLASH_KEY.startswith("<extract"):
-        return None
-    try:
-        params = urllib.parse.urlencode({
-            "query": query,
-            "orientation": orientation,
-            "per_page": 5,
-            "order_by": "relevant"
-        })
-        req = urllib.request.Request(
-            f"https://api.unsplash.com/search/photos?{params}",
-            headers={"Authorization": f"Client-ID {UNSPLASH_KEY}", "Accept-Version": "v1"}
-        )
-        with urllib.request.urlopen(req, timeout=8) as resp:
-            data = json.loads(resp.read())
-            results = data.get("results", [])
-            if results:
-                return results[0]["urls"]["regular"]
-    except Exception:
-        pass
-    return None
+For each image slide, mentally pick one of `C1`, `C2`, `C3` at random. Never assign the same layout to two consecutive image slides.
 
-def pick_layout(previous: str | None = None) -> str:
-    """Pick a random image layout (C1/C2/C3), never repeating the previous one."""
-    options = ["C1", "C2", "C3"]
-    if previous in options:
-        options = [l for l in options if l != previous]
-    return random.choice(options)
+Example for a 7-slide carousel:
+- Slide 3 → pick from [C1, C2, C3] → e.g. C2
+- Slide 4 → pick from [C1, C3] (exclude C2) → e.g. C3
+- Slide 6 → pick from [C1, C2] (exclude C3) → e.g. C1
 
-# ── STEP A: Pick layouts randomly, then classify topics and fetch images ─────
-#
-# 1. Call pick_layout() for each image slide — no two consecutive slides same layout
-# 2. Classify topic: abstract → "... flat illustration" / physical → concrete noun query
-# 3. Fetch image with orientation="landscape" (all C layouts)
-# 4. Hero always orientation="portrait"
-#
-# Replace example queries with ones matching the actual carousel topic.
+---
 
-layout_s3 = pick_layout(None)
-layout_s4 = pick_layout(layout_s3)
-layout_s6 = pick_layout(layout_s4)  # if 7-slide sequence
+**B — Call `Search Unsplash` tool for every image slide before writing any HTML**
 
-images = {
-    "hero":     fetch_unsplash("robot arm factory conveyor",               orientation="portrait"),
-    "solution": fetch_unsplash("automation workflow flat illustration",    orientation="landscape"),
-    "features": fetch_unsplash("productivity efficiency flat illustration", orientation="landscape"),
-    "howto":    fetch_unsplash("workflow process flat illustration",        orientation="landscape"),
-}
-# None = render that slide without image — never raise errors, never halt generation
-```
+Make ALL tool calls now, store the URLs, then build the slides.
+
+For each slide that needs an image:
+1. Classify topic (abstract or physical)
+2. Pick query from library or derive per Query Strategy rules
+3. Call `Search Unsplash` tool → extract `results[0].urls.regular`
+4. If no results → that slide gets no image (use text-only fallback layout)
+
+| Slide | Example query | Orientation |
+|---|---|---|
+| Hero (slide 1) | `office team laptop working` | `portrait` |
+| Solution (slide 3) | `automation workflow flat illustration` | `landscape` |
+| Features (slide 4) | `productivity efficiency flat illustration` | `landscape` |
+| How-to (slide 6) | `workflow process flat illustration` | `landscape` |
+
+Replace example queries with ones matching the actual carousel topic.
+
+---
+
+**C — After all tool calls are complete, proceed to Step 2 and build HTML**
 
 ### Step 2 — Build all slide HTML strings
 
