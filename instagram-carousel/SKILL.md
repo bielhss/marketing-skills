@@ -71,13 +71,56 @@ If `UNSPLASH_KEY` is empty or missing from the context, skip all image fetching 
 
 ### Which slides get images
 
-| Slide type | Image usage | Style |
+| Slide type | Image usage | Layout variant |
 |---|---|---|
-| **Hero (slide 1)** | Full background with overlay | Dark overlay `rgba(0,0,0,0.45)` over image, content on top |
-| **Solution / Gradient** | Decorative element (right side) | Rounded image block, 420×420px, positioned right |
-| **Features / Steps (content slides)** | Decorative element (right side) | Rounded image block, 360×480px, positioned right |
+| **Hero (slide 1)** | Full background with dark overlay | Text centered on top of image |
+| **Solution / Gradient** | Decorative block | Alternates: right-side or top-banner |
+| **Features / Steps (content slides)** | Decorative block | Alternates: right-side or bottom-banner |
 | Problem / Challenge | ❌ No image | Dark bg is enough |
 | CTA (last slide) | ❌ No image | Brand gradient is enough |
+
+### ⚠️ Query Strategy — CRITICAL
+
+Bad queries are the main reason images feel irrelevant. Follow these rules strictly:
+
+**Rule 1 — Query must match the slide's specific subject, not the general topic**
+
+The query is derived from the **main noun or action of that specific slide**, not the overall carousel theme.
+
+| Slide headline | ❌ Wrong query | ✅ Correct query |
+|---|---|---|
+| "Por que unir IA e RPA?" | `"technology"` | `"robot arm factory automation"` |
+| "Junte IA à automação" | `"business"` | `"computer screen data processing"` |
+| "Decisão automática" | `"artificial intelligence"` | `"dashboard analytics decision"` |
+| "Escalabilidade" | `"growth"` | `"server rack data center scale"` |
+| "Atendimento automatizado" | `"customer"` | `"headset call center software"` |
+| "Leitura de documentos" | `"document"` | `"document scanning ocr paper"` |
+| "Integração de sistemas" | `"technology"` | `"api connection integration cables"` |
+| "Processos financeiros" | `"finance"` | `"spreadsheet invoice accounting desk"` |
+| "Monitoramento" | `"monitoring"` | `"screen graphs monitoring alert"` |
+
+**Rule 2 — Self-check before using a query**
+
+Before calling `fetch_unsplash()`, ask internally:
+> "If someone searches this on a photo site, would the results show images directly related to what this slide is about?"
+
+If the answer is "probably not" or "maybe" → rewrite the query or use `None` (no image).
+
+**Rule 3 — Banned generic terms**
+
+Never use these as the primary term in a query:
+`technology`, `business`, `nature`, `landscape`, `background`, `abstract`, `people`, `team`, `success`, `growth`, `digital`, `future`, `innovation`
+
+These return random stock photos with no semantic link to the slide content.
+
+**Rule 4 — Always in English, 2–4 words, concrete nouns preferred**
+
+Good queries describe a physical object, scene, or action visible in a photo:
+- ✅ `"robot arm welding factory"`
+- ✅ `"laptop screen code terminal"`
+- ✅ `"server rack blue light"`
+- ❌ `"smart automation future"`
+- ❌ `"digital transformation business"`
 
 ### How to fetch an image
 
@@ -85,7 +128,8 @@ If `UNSPLASH_KEY` is empty or missing from the context, skip all image fetching 
 def fetch_unsplash(query: str, orientation: str = "portrait") -> str | None:
     """
     Returns the best image URL for the query, or None if unavailable.
-    orientation: "portrait" for hero/full-bg, "landscape" for decorative elements
+    Always validate the query against the rules above before calling this function.
+    orientation: 'portrait' for hero full-bg, 'squarish' for decorative blocks
     """
     if not UNSPLASH_KEY or UNSPLASH_KEY == "INJECTED_BY_N8N_SYSTEM_PROMPT":
         return None
@@ -93,7 +137,7 @@ def fetch_unsplash(query: str, orientation: str = "portrait") -> str | None:
         params = urllib.parse.urlencode({
             "query": query,
             "orientation": orientation,
-            "per_page": 1,
+            "per_page": 3,
             "order_by": "relevant"
         })
         url = f"https://api.unsplash.com/search/photos?{params}"
@@ -105,30 +149,12 @@ def fetch_unsplash(query: str, orientation: str = "portrait") -> str | None:
             data = json.loads(resp.read())
             results = data.get("results", [])
             if results:
-                # Use the "regular" size — good quality, not too heavy
+                # Pick the first result — per_page:3 gives the API room to rank better
                 return results[0]["urls"]["regular"]
     except Exception:
         pass
     return None
 ```
-
-### Query strategy
-
-Queries must be in **English**, descriptive, and topic-specific. Derive them from the slide content:
-
-| Slide topic | Example query |
-|---|---|
-| RPA + IA | `"robot automation artificial intelligence"` |
-| Decisão automática | `"data decision technology"` |
-| Processos empresariais | `"business workflow process"` |
-| Escalabilidade | `"growth scale technology"` |
-| Atendimento ao cliente | `"customer service support"` |
-
-Rules:
-- 2–4 words maximum
-- Always in English
-- Avoid brand names, people's names, or overly specific terms
-- Prefer abstract/conceptual terms over literal ones for better results
 
 ---
 
@@ -146,7 +172,7 @@ Used when `image_url` is returned for the Hero slide.
      style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;">
 
 <!-- Layer 1: dark overlay so text stays readable -->
-<div style="position:absolute;inset:0;background:rgba(0,0,0,0.52);z-index:1;"></div>
+<div style="position:absolute;inset:0;background:rgba(0,0,0,0.55);z-index:1;"></div>
 
 <!-- Layer 2+: all slide content (text, logo, progress bar, arrow) -->
 ```
@@ -159,37 +185,51 @@ When using a dark overlay on the Hero:
 
 If `fetch_unsplash()` returns `None` for the Hero, fall back to `LIGHT_BG` background — no overlay needed.
 
-### B — Decorative element, right side (Solution + Content slides)
+### B — Decorative block layouts (Solution + Content slides)
 
-Used for Solution/Gradient slides and Features/Steps slides. The image sits on the right half of the slide; text occupies the left.
+These slides alternate between two layout variants to create visual rhythm across the carousel.
+Choose the variant based on the slide's position — odd-indexed content slides use Layout B1, even-indexed use Layout B2.
 
-```html
-<!-- Solution / Gradient slide: 420×420px rounded image -->
-<img src="{IMAGE_URL}"
-     style="position:absolute;right:72px;top:50%;transform:translateY(-50%);
-            width:420px;height:420px;object-fit:cover;border-radius:24px;
-            z-index:2;opacity:0.92;box-shadow:0 24px 64px rgba(0,0,0,0.3);">
+#### B1 — Image right, text left (odd content slides)
 
-<!-- Content slides (features/steps): 360×480px rounded image -->
-<img src="{IMAGE_URL}"
-     style="position:absolute;right:72px;top:50%;transform:translateY(-50%);
-            width:360px;height:480px;object-fit:cover;border-radius:20px;
-            z-index:2;opacity:0.95;box-shadow:0 16px 48px rgba(0,0,0,0.18);">
-```
-
-When using a decorative element on the right:
-- Restrict content area to the **left 580px** of the slide by adding `max-width:580px` to the content wrapper
-- Do NOT reduce font sizes — keep the mandatory typography scale
-- If content is too long for 580px → remove words from the copy
+Text occupies the left 560px; image floats on the right, vertically centered.
 
 ```html
-<!-- Content wrapper when decorative image is present -->
-<div style="position:relative;z-index:3;max-width:580px;">
-  <!-- tag, headline, body content here -->
+<!-- Decorative image — right side, vertically centered -->
+<img src="{IMAGE_URL}"
+     style="position:absolute;right:72px;top:50%;transform:translateY(-50%);
+            width:390px;height:460px;object-fit:cover;border-radius:20px;
+            z-index:2;opacity:0.95;box-shadow:0 20px 56px rgba(0,0,0,0.22);">
+
+<!-- Content wrapper — left side only -->
+<div style="position:relative;z-index:3;max-width:560px;">
+  <!-- tag, headline, body content -->
 </div>
 ```
 
-If `fetch_unsplash()` returns `None` for these slides, render the slide normally at full width — no layout change needed.
+#### B2 — Image top-right banner, text below (even content slides)
+
+A wide banner image sits in the upper-right quadrant; text is anchored below it on the left.
+
+```html
+<!-- Decorative image — top right banner -->
+<img src="{IMAGE_URL}"
+     style="position:absolute;right:72px;top:100px;
+            width:440px;height:300px;object-fit:cover;border-radius:20px;
+            z-index:2;opacity:0.95;box-shadow:0 16px 48px rgba(0,0,0,0.18);">
+
+<!-- Content wrapper — full width, positioned in lower half -->
+<div style="position:relative;z-index:3;margin-top:440px;">
+  <!-- tag, headline, body content -->
+</div>
+```
+
+#### Rules for both B layouts:
+- **Never reduce font sizes** — keep the mandatory typography scale
+- If content is too long → remove words, not pixels
+- If `fetch_unsplash()` returns `None` → render slide at full width, no layout shift
+- On **gradient/dark slides** using B1: add `box-shadow:0 20px 56px rgba(0,0,0,0.4)` for depth
+- On **light slides** using B1 or B2: shadow is `rgba(0,0,0,0.18)`
 
 ---
 
@@ -288,19 +328,22 @@ Content must **never overlap the progress bar** — `140px` bottom padding guara
 
 ### Standard (7 slides — default)
 
-| # | Type | Background | Image |
-|---|------|------------|-------|
-| 1 | Hero | LIGHT_BG or image+overlay | ✅ Full background |
-| 2 | Problem | DARK_BG | ❌ |
-| 3 | Solution | Brand gradient | ✅ Decorative right |
-| 4 | Features | LIGHT_BG | ✅ Decorative right |
-| 5 | Details | DARK_BG | ❌ |
-| 6 | How-to | LIGHT_BG | ✅ Decorative right |
-| 7 | CTA | Brand gradient | ❌ |
+| # | Type | Background | Image | Layout |
+|---|------|------------|-------|--------|
+| 1 | Hero | image + dark overlay | ✅ Full background | A — overlay |
+| 2 | Problem | DARK_BG | ❌ | — |
+| 3 | Solution | Brand gradient | ✅ Decorative block | B1 — image right |
+| 4 | Features | LIGHT_BG | ✅ Decorative block | B2 — image top-right banner |
+| 5 | Details | DARK_BG | ❌ | — |
+| 6 | How-to | LIGHT_BG | ✅ Decorative block | B1 — image right |
+| 7 | CTA | Brand gradient | ❌ | — |
 
 ### Listicle / Tutorial / Comparação
 
-Apply image decoration to light-background content slides only. Dark and gradient slides never receive images.
+- Apply image decoration to **content slides only** (light or gradient background)
+- Dark background slides never receive images
+- Alternate B1 and B2 layouts between consecutive image slides for visual rhythm
+- Never apply the same layout variant to two consecutive image slides
 
 ---
 
@@ -427,10 +470,13 @@ Apply image decoration to light-background content slides only. Dark and gradien
 </head>
 <body>
   <div class="slide">
-    <!-- background image (hero only, z-index:0) -->
-    <!-- overlay (hero only, z-index:1) -->
-    <!-- decorative image (solution/content slides, z-index:2, absolute right) -->
-    <!-- content wrapper (z-index:3, max-width:580px when image present) -->
+    <!-- [Hero only] background image (z-index:0) + dark overlay (z-index:1) -->
+    <!-- [B1] decorative image right: absolute right:72px, vertically centered, z-index:2 -->
+    <!-- [B2] decorative image top-right: absolute right:72px top:100px, z-index:2 -->
+    <!-- content wrapper (z-index:3) -->
+    <!--   B1: max-width:560px -->
+    <!--   B2: margin-top:440px -->
+    <!--   No image: full width -->
       <!-- tag label -->
       <!-- headline -->
       <!-- subheadline or body content -->
