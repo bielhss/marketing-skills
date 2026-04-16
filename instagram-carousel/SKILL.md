@@ -1,21 +1,22 @@
 ---
 name: instagram-carousel
 description: >
-  Creates high-quality Instagram carousels as individual export-ready HTML files
-  (1080×1350px), one file per slide, ready for PNG conversion via html2png.dev.
+  Creates high-quality Instagram carousels as base64-encoded PNG images
+  (1080×1350px), one image per slide, ready for n8n integration.
   Handles the full workflow: brand setup, slide copy, visual design system
-  (colors, fonts, components), and HTML generation. Use this skill whenever the
-  user asks to create, design, or generate an Instagram carousel, carrossel,
-  slides para Instagram, or any Instagram multi-image post — even if they
-  don't explicitly say "carousel" or "skill". Also trigger for requests to
-  "create a post with multiple slides", "fazer carrossel", or "exportar slides
-  para o Instagram".
+  (colors, fonts, components), HTML generation, and headless PNG rendering.
+  Use this skill whenever the user asks to create, design, or generate an
+  Instagram carousel, carrossel, slides para Instagram, or any Instagram
+  multi-image post — even if they don't explicitly say "carousel" or "skill".
+  Also trigger for requests to "create a post with multiple slides",
+  "fazer carrossel", or "exportar slides para o Instagram".
 ---
 
 # Instagram Carousel Generator
 
-Generates fully self-contained HTML files — one per slide — at exactly
-1080×1350px, ready to be converted to PNG via html2png.dev.
+Generates fully self-contained HTML slides at exactly 1080×1350px,
+renders each one headlessly via Playwright, and outputs a JSON file
+containing one base64-encoded PNG string per slide — ready for n8n.
 
 ---
 
@@ -35,7 +36,6 @@ Generates fully self-contained HTML files — one per slide — at exactly
 9. **Carousel format** — standard (7 slides) or alternate sequence (see sequences section)
 
 If the user provides a website URL or brand assets, derive colors and style from those.
-
 
 ---
 
@@ -176,7 +176,7 @@ The first slide must stop the scroll in under 1 second. Prioritize these formats
 
 This system is NOT web-based. All typography must be optimized for Instagram viewing on mobile devices.
 
-- Text must be readable at arm’s length on a phone
+- Text must be readable at arm's length on a phone
 - Prioritize large, bold headlines
 - Reduce text density instead of shrinking font size
 - Prefer fewer words over smaller typography
@@ -253,8 +253,7 @@ Use for: "X ferramentas", "X erros", "X dicas"
 
 ### Format
 - Dimensions: **1080×1350px** (Instagram carousel standard, 4:5)
-- Each slide is a **standalone HTML file** — `slide_1.html`, `slide_2.html`, etc.
-- Each file is self-contained: no JavaScript, no interactivity, no wrapper chrome
+- Each slide is rendered to a **base64 PNG string** via Playwright
 - All slides use `width:1080px; height:1350px` fixed in the `<body>` and root container
 - Alternate LIGHT_BG and DARK_BG backgrounds for visual rhythm
 
@@ -409,9 +408,10 @@ Example:
 ❌ "Por que unir IA e RPA?"
 ✅ "Por que unir\nIA e RPA?"
 
-## HTML File Structure (per slide)
+## HTML Slide Structure (per slide)
 
-Each slide is exported as an individual, fully self-contained HTML file with no JavaScript, no interactivity, and no Instagram chrome. The file is designed to be captured by html2png.dev at exactly 1080×1350px.
+Each slide is a fully self-contained HTML string — no JavaScript, no interactivity.
+It is written to a temp file and rendered to PNG by Playwright.
 
 ```html
 <!DOCTYPE html>
@@ -435,7 +435,7 @@ Each slide is exported as an individual, fully self-contained HTML file with no 
       display: flex;
       flex-direction: column;
       justify-content: flex-end; /* or center for hero/CTA */
-      padding: 120px 90px 140px
+      padding: 120px 90px 140px;
       overflow: hidden;
     }
     .serif { font-family: '{HEADING_FONT}', serif; }
@@ -452,28 +452,104 @@ Each slide is exported as an individual, fully self-contained HTML file with no 
 </html>
 ```
 
-### Output files
-- Name files sequentially: `slide_1.html`, `slide_2.html`, ..., `slide_N.html`
-- Generate all files to `/home/claude/` and copy to `/mnt/user-data/outputs/`
-- Use Python `Path.write_text()` — never shell heredocs (breaks base64 strings)
-
 ---
 
 ## Generation Flow
 
-1. Generate all slide HTML files directly — one file per slide
-2. Save each to `/mnt/user-data/outputs/slide_N.html`
-3. Present all files to the user when done
+### Step 1 — Install Playwright (once per session)
+
+```bash
+pip install playwright --break-system-packages
+python -m playwright install chromium
+```
+
+### Step 2 — Write all slide HTML files to disk
+
+Use Python `Path.write_text()` — never shell heredocs (breaks base64 strings).
+
+```python
+from pathlib import Path
+
+slides_html = [slide_1_html, slide_2_html, ...]  # list of HTML strings
+
+for i, html in enumerate(slides_html, start=1):
+    Path(f"/home/claude/slide_{i}.html").write_text(html, encoding="utf-8")
+```
+
+### Step 3 — Render each slide to base64 PNG via Playwright
+
+```python
+import base64
+import json
+from pathlib import Path
+from playwright.sync_api import sync_playwright
+
+results = []
+
+with sync_playwright() as p:
+    browser = p.chromium.launch()
+    for i in range(1, len(slides_html) + 1):
+        page = browser.new_page(viewport={"width": 1080, "height": 1350})
+        html_path = Path(f"/home/claude/slide_{i}.html").resolve()
+        page.goto(f"file://{html_path}")
+        # Wait for Google Fonts to load
+        page.wait_for_timeout(2000)
+        png_bytes = page.screenshot(full_page=False)
+        b64 = base64.b64encode(png_bytes).decode("utf-8")
+        results.append({
+            "slide": i,
+            "base64": b64,
+            "media_type": "image/png"
+        })
+    browser.close()
+
+# Save JSON output for n8n
+output = {"slides": results}
+Path("/home/claude/carousel_output.json").write_text(
+    json.dumps(output), encoding="utf-8"
+)
+print(f"Generated {len(results)} slides.")
+```
+
+### Step 4 — Copy output to user-accessible directory
+
+```bash
+cp /home/claude/carousel_output.json /mnt/user-data/outputs/carousel_output.json
+```
+
+### Step 5 — Present the output file to the user
+
+After copying, call `present_files` with `/mnt/user-data/outputs/carousel_output.json`.
 
 ---
 
-## Converting to PNG
+## Output Format
 
-After the HTML files are generated, use **html2png.dev** (or equivalent) to convert each `slide_N.html` to a PNG. No Playwright or local rendering is needed.
+The final output is a single JSON file: `carousel_output.json`
 
-- Capture dimensions: **1080×1350px**
-- Each HTML file is already sized correctly — no scaling needed
-- Fonts load from Google Fonts CDN; ensure the converter allows external requests
+```json
+{
+  "slides": [
+    {
+      "slide": 1,
+      "base64": "iVBORw0KGgoAAAANSUhEUgAABD...",
+      "media_type": "image/png"
+    },
+    {
+      "slide": 2,
+      "base64": "iVBORw0KGgoAAAANSUhEUgAABD...",
+      "media_type": "image/png"
+    }
+  ]
+}
+```
+
+### Using in n8n
+
+In n8n, after receiving this JSON:
+- Use a **Code node** or **Set node** to iterate `slides`
+- Each `base64` value can be decoded directly as a binary PNG
+- Pass to HTTP Request, Google Drive, Instagram API, or any image-consuming node
 
 ---
 
@@ -488,4 +564,4 @@ After the HTML files are generated, use **html2png.dev** (or equivalent) to conv
 7. **Consistent components** — same tag style, list style, spacing across all slides
 8. **Content padding clears UI** — body text never overlaps progress bar or arrow
 9. **Hook-first copy** — Slide 1 exists to stop the scroll, not to introduce the brand
-10. **One file per slide** — each HTML is standalone and ready for html2png.dev conversion
+10. **One JSON output** — all slides as base64 PNGs in a single file, ready for n8n
