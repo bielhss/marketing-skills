@@ -303,102 +303,145 @@ When using a dark overlay on the Hero:
 
 If `fetch_unsplash()` returns `None` for the Hero, fall back to `LIGHT_BG` background — no overlay needed.
 
-### B — Image-top layouts (Solution + Content slides)
+### B — Image layouts (Solution + Content slides)
 
-These slides place the image in the **top portion** and the text in the **bottom portion** — a clean, native-Instagram feel. Two layout variants alternate for visual rhythm.
+Each image slide uses one of three layout variants, **chosen randomly per slide** using `random.choice(["C1","C2","C3"])` in Python. Never use the same variant on two consecutive image slides — re-draw if needed.
 
-#### C1 — Full-width image top, text bottom (odd-indexed content slides: 3, 6 ...)
+---
 
-The slide is divided vertically:
-- **Top zone** (0–620px): full-width image with rounded bottom corners
-- **Text zone** (640px–1210px): exactly 570px tall, `overflow:hidden` enforced
-- **Progress bar zone** (1210px–1350px): 140px reserved — text zone NEVER enters this area
+#### Layout selection (Python — run before building HTML)
+
+```python
+import random
+
+def pick_layout(previous_layout: str | None = None) -> str:
+    """Pick a random image layout, avoiding repeating the previous one."""
+    options = ["C1", "C2", "C3"]
+    if previous_layout in options:
+        options = [l for l in options if l != previous_layout]
+    return random.choice(options)
+
+# Example usage when building slides:
+# layout_slide3 = pick_layout(None)
+# layout_slide4 = pick_layout(layout_slide3)
+# layout_slide6 = pick_layout(layout_slide4)
+```
+
+---
+
+#### C1 — Image top, text bottom
+
+**Pixel budget:**
+- Image: `top:0` → `height:580px` (rounded bottom corners)
+- Text: `top:600px` → `height:560px` (560px available before progress bar)
+- Progress bar: bottom 140px — text zone NEVER enters this area
 
 ```html
 <div class="slide" style="justify-content:flex-start;padding:0;">
 
-  <!-- Full-width image — TOP ZONE -->
   <img src="{IMAGE_URL}"
        style="position:absolute;top:0;left:0;right:0;
-              width:100%;height:620px;object-fit:cover;
-              border-radius:0 0 32px 32px;
-              z-index:1;opacity:0.97;">
+              width:100%;height:580px;object-fit:cover;
+              border-radius:0 0 32px 32px;z-index:1;opacity:0.97;">
 
-  <!-- Text content — BOTTOM ZONE, fixed height, overflow hidden -->
-  <!-- Available: 1350 - 640 (top) - 140 (progress bar) = 570px -->
-  <div style="position:absolute;left:80px;top:640px;right:80px;
-              height:570px;overflow:hidden;
-              display:flex;flex-direction:column;
-              justify-content:flex-start;z-index:3;">
-    <!-- tag label (22px + margin ~40px) -->
-    <!-- headline: MAX 2 lines at 88px (~200px) -->
-    <!-- body: MAX 2 lines at 48px (~130px) -->
+  <!-- Text zone: 1350 - 600 (start) - 140 (progress bar) = 610px, capped at 560px for safety -->
+  <div style="position:absolute;left:80px;top:600px;right:80px;
+              height:560px;overflow:hidden;
+              display:flex;flex-direction:column;justify-content:flex-start;z-index:3;">
+    <!-- tag label: 22px uppercase, margin-bottom:20px -->
+    <!-- headline: MAX 2 lines at 84px, line-height:1.08 (~190px) -->
+    <!-- body: MAX 3 lines at 42px, line-height:1.4 (~180px) -->
+    <!-- Total estimate: ~430px — safe within 560px -->
   </div>
 
-  <!-- Progress bar — z-index:10, always on top -->
-  <!-- Swipe arrow — z-index:9 -->
+  <!-- Progress bar: position:absolute;bottom:0;left:0;right:0;z-index:10 -->
+  <!-- Swipe arrow: z-index:9 -->
 </div>
 ```
 
-⚠️ **C1 copy limits** — `overflow:hidden` clips silently, so stay within bounds:
-- Headline: **max 2 lines** at 88px
-- Body: **max 2 lines** at 48px — cut words before exceeding
+---
 
-#### C2 — Image top with floating card overlay (even-indexed content slides: 4 ...)
+#### C2 — Image top, floating card overlay
 
-The image fills the top ~55% and a card floats at the bottom, overlapping the image edge slightly.
-
-- **Image zone** (0–700px): bleeds full width, no border-radius
-- **Card zone** (620px–1250px): fixed height 630px, `overflow:hidden` enforced
-- **Progress bar zone** (1250px–1350px): 100px reserved — card `bottom` must respect this
+**Pixel budget:**
+- Image: `top:0` → `height:680px`
+- Card: `top:600px` → `bottom:100px` (card height = 1350 - 600 - 100 = 650px)
+- Usable inside card after padding (44px top + 44px bottom): **562px**
+- Progress bar: bottom 100px — card `bottom:100px` guarantees this
 
 ```html
 <div class="slide" style="justify-content:flex-start;padding:0;background:{SLIDE_BG};">
 
-  <!-- Full-width image — TOP ZONE -->
   <img src="{IMAGE_URL}"
        style="position:absolute;top:0;left:0;right:0;
-              width:100%;height:700px;object-fit:cover;
-              z-index:1;">
+              width:100%;height:680px;object-fit:cover;z-index:1;">
 
-  <!-- Floating card — overlaps image bottom edge by ~80px -->
-  <!-- bottom:100px ensures progress bar always visible below card -->
-  <div style="position:absolute;left:60px;right:60px;
-              top:620px;bottom:100px;
+  <div style="position:absolute;left:56px;right:56px;
+              top:600px;bottom:100px;
               background:{CARD_BG};border-radius:28px;
               box-shadow:0 -8px 40px rgba(0,0,0,0.18);
-              padding:44px 56px 44px;
-              overflow:hidden;
+              padding:44px 56px;overflow:hidden;
               display:flex;flex-direction:column;justify-content:flex-start;
               z-index:4;">
-    <!-- tag label (22px + margin ~40px) -->
+    <!-- tag label: 22px uppercase, margin-bottom:20px -->
     <!-- headline: MAX 2 lines at 84px (~190px) -->
-    <!-- body: MAX 2 lines at 44px (~120px) -->
+    <!-- body: MAX 3 lines at 42px (~180px) -->
+    <!-- Total estimate: ~430px — safe within 562px usable -->
   </div>
 
-  <!-- Progress bar — position:absolute;bottom:0;z-index:10 — ALWAYS outside the card -->
-  <!-- Swipe arrow — z-index:9 -->
+  <!-- Progress bar: position:absolute;bottom:0;left:0;right:0;z-index:10 — lives on .slide, NOT inside card -->
+  <!-- Swipe arrow: z-index:9 -->
 </div>
 ```
 
-**CARD_BG values:**
-- Light slides: `#FFFFFF` — text `#1a1a1a`
-- Dark slides: `{DARK_BG}` — text `#ffffff`
+**CARD_BG:** light slides → `#FFFFFF` (text `#1a1a1a`) · dark slides → `{DARK_BG}` (text `#ffffff`)
 
-⚠️ **C2 copy limits** — card height is ~530px usable after padding:
-- Headline: **max 2 lines** at 84px
-- Body: **max 2 lines** at 44px — cut words before exceeding
-- `overflow:hidden` on the card prevents content from leaking outside
+---
+
+#### C3 — Text top, image bottom
+
+**Pixel budget:**
+- Text: `top:100px` → `height:560px`
+- Image: `top:700px` → `bottom:0` (`height:650px`, rounded top corners)
+- Progress bar overlays the bottom of the image — use white track/fill on image
+
+```html
+<div class="slide" style="justify-content:flex-start;padding:0;background:{SLIDE_BG};">
+
+  <!-- Text zone — TOP, starts with breathing room from edge -->
+  <div style="position:absolute;left:80px;top:100px;right:80px;
+              height:560px;overflow:hidden;
+              display:flex;flex-direction:column;justify-content:flex-start;z-index:3;">
+    <!-- tag label: 22px uppercase, margin-bottom:20px -->
+    <!-- headline: MAX 2 lines at 84px (~190px) -->
+    <!-- body: MAX 3 lines at 42px (~180px) -->
+    <!-- Total estimate: ~430px — safe within 560px -->
+  </div>
+
+  <img src="{IMAGE_URL}"
+       style="position:absolute;top:700px;left:0;right:0;bottom:0;
+              width:100%;height:650px;object-fit:cover;
+              border-radius:32px 32px 0 0;z-index:1;opacity:0.97;">
+
+  <!-- Progress bar: position:absolute;bottom:0;left:0;right:0;z-index:10 -->
+  <!-- On C3, progress bar sits over the image — use white track + white fill -->
+  <!-- Swipe arrow: z-index:9 -->
+</div>
+```
+
+---
 
 #### ⚠️ Critical rules for ALL C layouts:
 
-1. **Pixel zones must never overlap** — C1 text starts at 640px, C2 card starts at 620px; verify before writing HTML
-2. **Always use `overflow:hidden`** on the text wrapper (C1) and the card (C2) — this is the hard stop against overflow
-3. **Never reduce font sizes** — if content doesn't fit, remove words. Font sizes are fixed by the typography scale
-4. **Progress bar is always `position:absolute;bottom:0;left:0;right:0;z-index:10`** — it lives on `.slide`, NOT inside any card or text wrapper
-5. **C2 card must have `bottom:100px`** — this guarantees the progress bar zone is always visible below the card
-6. **If `fetch_unsplash()` returns `None`** → remove the image tag entirely, set `.slide` to `justify-content:center; padding:100px 90px 140px`, render full-width text layout
-7. **Image orientation**: always `orientation="landscape"` for C1 and C2 — never portrait or squarish
+1. **Zones never overlap** — verify pixel coordinates before writing HTML for each layout
+2. **`overflow:hidden` mandatory** on every text wrapper and card — hard stop against overflow
+3. **Font sizes are fixed** — if content doesn't fit, remove words, never shrink fonts
+4. **Body text: MAX 3 lines at 42px** across all C layouts — this is the corrected limit
+5. **Progress bar lives on `.slide`** (`position:absolute;bottom:0;z-index:10`) — never inside a card or text wrapper
+6. **C2 card: `bottom:100px` is non-negotiable** — ensures progress bar is always visible
+7. **C3 progress bar**: use white track `rgba(255,255,255,0.2)` and white fill `#fff` — it sits over the image
+8. **No image fallback**: if `fetch_unsplash()` returns `None` → remove image tag, set `.slide` to `justify-content:center; padding:100px 90px 140px`
+9. **Orientation**: always `orientation="landscape"` for all C layouts
 
 ---
 
@@ -501,19 +544,17 @@ Content must **never overlap the progress bar** — `140px` bottom padding guara
 |---|------|------------|-------|--------|
 | 1 | Hero | image + dark overlay | ✅ Full background | A — overlay |
 | 2 | Problem | DARK_BG | ❌ | — |
-| 3 | Solution | LIGHT_BG | ✅ Image top | C1 — full-width image top, text bottom |
-| 4 | Features | DARK_BG or LIGHT_BG | ✅ Image top + floating card | C2 — image top, floating card |
+| 3 | Solution | LIGHT_BG | ✅ Image slide | **random: C1, C2 or C3** |
+| 4 | Features | DARK_BG or LIGHT_BG | ✅ Image slide | **random: C1, C2 or C3 (≠ slide 3)** |
 | 5 | Details | DARK_BG | ❌ | — |
-| 6 | How-to | LIGHT_BG | ✅ Image top | C1 — full-width image top, text bottom |
+| 6 | How-to | LIGHT_BG | ✅ Image slide | **random: C1, C2 or C3 (≠ slide 4)** |
 | 7 | CTA | Brand gradient | ❌ | — |
 
 ### Listicle / Tutorial / Comparação
 
-- Apply image to **content slides only** (light or dark background)
-- Dark background slides may use C2 with a dark card overlay
-- Alternate C1 and C2 layouts between consecutive image slides for visual rhythm
-- Never apply the same layout variant to two consecutive image slides
-- Always use `orientation="landscape"` when fetching images for C1 and C2 layouts
+- Apply image to **content slides only**
+- Use `pick_layout()` for each image slide — never repeat the previous layout
+- Always use `orientation="landscape"` when fetching images
 
 ---
 
@@ -655,20 +696,28 @@ Content must **never overlap the progress bar** — `140px` bottom padding guara
     <!-- swipe arrow (absolute, z-index:9) -->
   </div>
 
-  <!-- ═══ C1 — full-width image top, text bottom ═══ -->
+  <!-- ═══ C1 — image top (580px), text bottom (top:600px, height:560px) ═══ -->
   <div class="slide" style="justify-content:flex-start;padding:0;">
-    <!-- image: position:absolute;top:0;left:0;right:0;width:100%;height:700px;object-fit:cover;border-radius:0 0 32px 32px;z-index:1 -->
-    <!-- text: position:absolute;left:80px;top:740px;right:80px;bottom:140px;z-index:3 -->
-    <!-- progress bar (absolute, z-index:10) -->
-    <!-- swipe arrow (absolute, z-index:9) -->
+    <!-- image: position:absolute;top:0;left:0;right:0;width:100%;height:580px;object-fit:cover;border-radius:0 0 32px 32px;z-index:1 -->
+    <!-- text: position:absolute;left:80px;top:600px;right:80px;height:560px;overflow:hidden;z-index:3 -->
+    <!-- progress bar: position:absolute;bottom:0;left:0;right:0;z-index:10 -->
+    <!-- swipe arrow: z-index:9 -->
   </div>
 
-  <!-- ═══ C2 — image top, floating card overlay ═══ -->
+  <!-- ═══ C2 — image top (680px), floating card (top:600px, bottom:100px) ═══ -->
   <div class="slide" style="justify-content:flex-start;padding:0;">
-    <!-- image: position:absolute;top:0;left:0;right:0;width:100%;height:780px;object-fit:cover;z-index:1 -->
-    <!-- card: position:absolute;left:60px;right:60px;top:680px;bottom:100px;border-radius:28px;box-shadow:0 -8px 40px rgba(0,0,0,0.18);padding:52px 60px;z-index:4 -->
-    <!-- progress bar (absolute, z-index:10) -->
-    <!-- swipe arrow (absolute, z-index:9) -->
+    <!-- image: position:absolute;top:0;left:0;right:0;width:100%;height:680px;object-fit:cover;z-index:1 -->
+    <!-- card: position:absolute;left:56px;right:56px;top:600px;bottom:100px;border-radius:28px;padding:44px 56px;overflow:hidden;z-index:4 -->
+    <!-- progress bar: position:absolute;bottom:0;left:0;right:0;z-index:10 — OUTSIDE card -->
+    <!-- swipe arrow: z-index:9 -->
+  </div>
+
+  <!-- ═══ C3 — text top (top:100px, height:560px), image bottom (top:700px) ═══ -->
+  <div class="slide" style="justify-content:flex-start;padding:0;">
+    <!-- text: position:absolute;left:80px;top:100px;right:80px;height:560px;overflow:hidden;z-index:3 -->
+    <!-- image: position:absolute;top:700px;left:0;right:0;bottom:0;width:100%;height:650px;object-fit:cover;border-radius:32px 32px 0 0;z-index:1 -->
+    <!-- progress bar: position:absolute;bottom:0;left:0;right:0;z-index:10 — white track+fill (sits over image) -->
+    <!-- swipe arrow: z-index:9 -->
   </div>
 </body>
 </html>
@@ -683,7 +732,7 @@ Content must **never overlap the progress bar** — `140px` bottom padding guara
 Before writing any HTML, run the classification and fetch for every slide that needs an image.
 
 ```python
-import json, urllib.request, urllib.parse
+import json, urllib.request, urllib.parse, random
 from pathlib import Path
 
 # Key injected by n8n system prompt — replace placeholder with actual value
@@ -694,7 +743,7 @@ from pathlib import Path
 UNSPLASH_KEY = "<extract_the_actual_key_value_from_system_prompt_context>"
 
 def fetch_unsplash(query: str, orientation: str = "landscape") -> str | None:
-    if not UNSPLASH_KEY or UNSPLASH_KEY.startswith("<extract"):  # guard: key was not properly set
+    if not UNSPLASH_KEY or UNSPLASH_KEY.startswith("<extract"):
         return None
     try:
         params = urllib.parse.urlencode({
@@ -716,16 +765,25 @@ def fetch_unsplash(query: str, orientation: str = "landscape") -> str | None:
         pass
     return None
 
-# ── STEP A: For each image slide, classify topic then pick query ──────────
+def pick_layout(previous: str | None = None) -> str:
+    """Pick a random image layout (C1/C2/C3), never repeating the previous one."""
+    options = ["C1", "C2", "C3"]
+    if previous in options:
+        options = [l for l in options if l != previous]
+    return random.choice(options)
+
+# ── STEP A: Pick layouts randomly, then classify topics and fetch images ─────
 #
-# Abstract concept (no physical photo possible) → "... flat illustration"
-# Physical thing (can be photographed)          → concrete noun query
+# 1. Call pick_layout() for each image slide — no two consecutive slides same layout
+# 2. Classify topic: abstract → "... flat illustration" / physical → concrete noun query
+# 3. Fetch image with orientation="landscape" (all C layouts)
+# 4. Hero always orientation="portrait"
 #
-# Hero always uses orientation="portrait"
-# C1 and C2 slides always use orientation="landscape" (full-width top banner)
-#
-# Replace the example queries below with ones matching the actual carousel topic,
-# following the pre-validated library in the Query Strategy section above.
+# Replace example queries with ones matching the actual carousel topic.
+
+layout_s3 = pick_layout(None)
+layout_s4 = pick_layout(layout_s3)
+layout_s6 = pick_layout(layout_s4)  # if 7-slide sequence
 
 images = {
     "hero":     fetch_unsplash("robot arm factory conveyor",               orientation="portrait"),
