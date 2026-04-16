@@ -301,6 +301,14 @@ When using a dark overlay on the Hero:
 - Use `rgba(255,255,255,0.12)` progress bar track and `#fff` fill
 - Use `rgba(255,255,255,0.35)` swipe arrow stroke
 
+**Hero logo — MANDATORY:** always render the icon logo using the real image URL from brand details. Never recreate it as text, initials, or a colored shape:
+```html
+<!-- Hero slide — top-left logo, z-index:2, above overlay -->
+<img src="{ICON_LOGO_URL}"
+     style="position:relative;z-index:2;height:48px;width:auto;object-fit:contain;display:block;margin-bottom:20px;"
+     alt="logo">
+```
+
 If `fetch_unsplash()` returns `None` for the Hero, fall back to `LIGHT_BG` background — no overlay needed.
 
 ### B — Image layouts (Solution + Content slides)
@@ -444,7 +452,29 @@ def pick_layout(previous_layout: str | None = None) -> str:
 6. **C2 card: `bottom:100px` is non-negotiable** — ensures progress bar is always visible
 7. **C3 progress bar**: use white track `rgba(255,255,255,0.2)` and white fill `#fff` — it sits over the image
 8. **No image fallback**: if `fetch_unsplash()` returns `None` → remove image tag entirely, set `.slide` to `justify-content:center; padding:100px 90px 140px`, render full-width text
-9. **Always add `onerror` on every `<img>` tag for C1/C2/C3 layouts**: `onerror="this.style.display='none'"` — if the image URL fails to load at render time, the slide hides the broken image and shows the clean background instead of a broken icon
+9. **Always add `onerror` on every `<img>` tag for C1/C2/C3 layouts** — when the image fails to load, hide it AND reposition the text to fill the full slide:
+
+```html
+<!-- C1/C3: onerror repositions the text zone to fill the slide -->
+<img src="{IMAGE_URL}"
+     onerror="this.style.display='none';
+              var t=document.getElementById('txt');
+              if(t){t.style.top='100px';t.style.height='1110px';}"
+     style="...">
+
+<!-- Add id='txt' to the text wrapper so onerror can find it -->
+<div id="txt" style="position:absolute;left:80px;top:600px;right:80px;height:560px;overflow:hidden;...">
+
+<!-- C2: onerror hides image and repositions card -->
+<img src="{IMAGE_URL}"
+     onerror="this.style.display='none';
+              var c=document.getElementById('card');
+              if(c){c.style.top='100px';c.style.bottom='100px';c.style.boxShadow='none';}"
+     style="...">
+<div id="card" style="position:absolute;left:56px;right:56px;top:600px;bottom:100px;...">
+```
+
+**Rule:** every C-layout image `<img>` must have an `onerror` that both hides the image and expands the text/card zone to fill the available space. Always assign `id="txt"` (C1/C3) or `id="card"` (C2) to the content wrapper.
 9. **Orientation**: always `orientation="landscape"` for all C layouts
 
 ---
@@ -700,6 +730,8 @@ Rules:
     }
     .serif { font-family: '{HEADING_FONT}', serif; }
     .sans  { font-family: '{BODY_FONT}', sans-serif; }
+    /* Critical: prevent text overflow beyond slide edges */
+    h1, h2, p, span, div { word-wrap: break-word; overflow-wrap: break-word; }
   </style>
 </head>
 <body>
@@ -722,7 +754,8 @@ Rules:
   <!-- ═══ C1 — image top (580px), text bottom (top:600px, height:560px) ═══ -->
   <div class="slide" style="justify-content:flex-start;padding:0;">
     <!-- image: position:absolute;top:0;left:0;right:0;width:100%;height:580px;object-fit:cover;border-radius:0 0 32px 32px;z-index:1 -->
-    <!-- text: position:absolute;left:80px;top:600px;right:80px;height:560px;overflow:hidden;z-index:3 -->
+    <!--        onerror: hide image + expand text zone (see fallback rule) -->
+    <!-- text:  id="txt" position:absolute;left:80px;top:600px;right:80px;height:560px;overflow:hidden;z-index:3 -->
     <!-- progress bar: position:absolute;bottom:0;left:0;right:0;z-index:10 -->
     <!-- swipe arrow: z-index:9 -->
   </div>
@@ -730,15 +763,17 @@ Rules:
   <!-- ═══ C2 — image top (680px), floating card (top:600px, bottom:100px) ═══ -->
   <div class="slide" style="justify-content:flex-start;padding:0;">
     <!-- image: position:absolute;top:0;left:0;right:0;width:100%;height:680px;object-fit:cover;z-index:1 -->
-    <!-- card: position:absolute;left:56px;right:56px;top:600px;bottom:100px;border-radius:28px;padding:44px 56px;overflow:hidden;z-index:4 -->
+    <!--        onerror: hide image + expand card zone (see fallback rule) -->
+    <!-- card:  id="card" position:absolute;left:56px;right:56px;top:600px;bottom:100px;border-radius:28px;padding:44px 56px;overflow:hidden;z-index:4 -->
     <!-- progress bar: position:absolute;bottom:0;left:0;right:0;z-index:10 — OUTSIDE card -->
     <!-- swipe arrow: z-index:9 -->
   </div>
 
   <!-- ═══ C3 — text top (top:100px, height:560px), image bottom (top:700px) ═══ -->
   <div class="slide" style="justify-content:flex-start;padding:0;">
-    <!-- text: position:absolute;left:80px;top:100px;right:80px;height:560px;overflow:hidden;z-index:3 -->
+    <!-- text:  id="txt" position:absolute;left:80px;top:100px;right:80px;height:560px;overflow:hidden;z-index:3 -->
     <!-- image: position:absolute;top:700px;left:0;right:0;bottom:0;width:100%;height:650px;object-fit:cover;border-radius:32px 32px 0 0;z-index:1 -->
+    <!--        onerror: hide image + expand text zone top:100px height:1110px (see fallback rule) -->
     <!-- progress bar: position:absolute;bottom:0;left:0;right:0;z-index:10 — white track+fill (sits over image) -->
     <!-- swipe arrow: z-index:9 -->
   </div>
