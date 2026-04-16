@@ -79,57 +79,125 @@ If `UNSPLASH_KEY` is empty or missing from the context, skip all image fetching 
 | Problem / Challenge | ❌ No image | Dark bg is enough |
 | CTA (last slide) | ❌ No image | Brand gradient is enough |
 
+### ⚠️ Image Type Decision — Run This First
+
+Before fetching any image, classify the slide topic as **abstract** or **physical**:
+
+| Type | Definition | Image source |
+|---|---|---|
+| **Abstract** | Concept with no single physical representation: decision-making, AI, integration, workflow logic, automation intelligence | → **Illustration** (Unsplash illustration query) |
+| **Physical** | Something you can photograph: a desk, a server, a document, a screen, a headset | → **Photo** (Unsplash photo query) |
+
+**Quick test:** "Could a photographer walk into a room and take a picture of this concept?"
+- No → Abstract → Illustration
+- Yes → Physical → Photo
+
+---
+
 ### ⚠️ Query Strategy — CRITICAL
 
-Bad queries are the main reason images feel irrelevant. Follow these rules strictly:
+Bad queries are the #1 reason images feel irrelevant. Follow every rule below without exception.
 
-**Rule 1 — Query must match the slide's specific subject, not the general topic**
+---
 
-The query is derived from the **main noun or action of that specific slide**, not the overall carousel theme.
+#### Rule 1 — Use the pre-validated query library
 
-| Slide headline | ❌ Wrong query | ✅ Correct query |
+Before writing any query, check if the topic matches an entry below. If it does, **use that exact string** — do not rephrase it.
+
+**Abstract topics → Illustration queries** (append `"flat illustration"` or `"minimal illustration"` to signal style)
+
+| Topic | Illustration query |
+|---|---|
+| Automação inteligente / RPA + IA | `"automation workflow flat illustration"` |
+| Inteligência Artificial / Machine Learning | `"artificial intelligence flat illustration"` |
+| Decisão automática | `"decision tree flat illustration"` |
+| Integração de sistemas / API | `"system integration flat illustration"` |
+| Fluxo de trabalho / Workflow | `"workflow process flat illustration"` |
+| Dados / Analytics | `"data analytics flat illustration"` |
+| Conectividade / Redes | `"network connection flat illustration"` |
+| Transformação digital | `"digital transformation flat illustration"` |
+| Escalabilidade | `"cloud computing flat illustration"` |
+| Monitoramento / Alertas | `"monitoring dashboard flat illustration"` |
+| Eficiência / Produtividade | `"productivity efficiency flat illustration"` |
+| Segurança / Compliance | `"cybersecurity flat illustration"` |
+
+**Physical topics → Photo queries** (concrete objects, no acronyms like RPA/IA/API)
+
+| Topic | Photo query |
+|---|---|
+| Automação industrial / Robôs físicos | `"robot arm factory conveyor"` |
+| Servidores / Infraestrutura | `"server rack data center"` |
+| Documentos / OCR / Papel | `"document scanner paper desk"` |
+| E-mail / Inbox | `"laptop email inbox screen"` |
+| Atendimento ao cliente | `"headset desk computer support"` |
+| Processos financeiros | `"spreadsheet calculator accounting desk"` |
+| Código / Desenvolvimento | `"code editor screen dark terminal"` |
+| Escritório / Trabalho | `"office desk laptop working"` |
+| Reunião / Equipe | `"meeting room whiteboard team"` |
+| Relatórios | `"report paper printed desk"` |
+| Monitoramento físico | `"monitor screen graphs dark room"` |
+
+If the topic is NOT in either table → apply Rule 2.
+
+---
+
+#### Rule 2 — Derive a query when topic is not in the library
+
+First classify (abstract or physical), then write a query following the same pattern:
+- Abstract → `"{concrete_concept} flat illustration"`
+- Physical → `"{physical_object} {context}"`
+
+| Slide headline | Classification | ✅ Correct query |
 |---|---|---|
-| "Por que unir IA e RPA?" | `"technology"` | `"robot arm factory automation"` |
-| "Junte IA à automação" | `"business"` | `"computer screen data processing"` |
-| "Decisão automática" | `"artificial intelligence"` | `"dashboard analytics decision"` |
-| "Escalabilidade" | `"growth"` | `"server rack data center scale"` |
-| "Atendimento automatizado" | `"customer"` | `"headset call center software"` |
-| "Leitura de documentos" | `"document"` | `"document scanning ocr paper"` |
-| "Integração de sistemas" | `"technology"` | `"api connection integration cables"` |
-| "Processos financeiros" | `"finance"` | `"spreadsheet invoice accounting desk"` |
-| "Monitoramento" | `"monitoring"` | `"screen graphs monitoring alert"` |
+| "Reduza erros no processo" | Physical | `"quality checklist clipboard desk"` |
+| "Relatórios automáticos" | Physical | `"report paper printed desk"` |
+| "Lógica de decisão" | Abstract | `"decision logic flat illustration"` |
+| "Orquestração de robôs" | Abstract | `"workflow orchestration flat illustration"` |
 
-**Rule 2 — Self-check before using a query**
+---
 
-Before calling `fetch_unsplash()`, ask internally:
-> "If someone searches this on a photo site, would the results show images directly related to what this slide is about?"
+#### Rule 3 — Self-check before every fetch_unsplash() call
 
-If the answer is "probably not" or "maybe" → rewrite the query or use `None` (no image).
+Ask internally:
+> "If I search this exact phrase on Unsplash, will the top results clearly illustrate what THIS SLIDE is specifically about — and match the abstract/physical classification I chose?"
 
-**Rule 3 — Banned generic terms**
+- "Yes, clearly" → proceed
+- "Maybe / probably not" → rewrite or return `None`
 
-Never use these as the primary term in a query:
-`technology`, `business`, `nature`, `landscape`, `background`, `abstract`, `people`, `team`, `success`, `growth`, `digital`, `future`, `innovation`
+---
 
-These return random stock photos with no semantic link to the slide content.
+#### Rule 4 — Banned terms (never use as primary term)
 
-**Rule 4 — Always in English, 2–4 words, concrete nouns preferred**
+`RPA`, `IA`, `API`, `ERP`, `technology`, `business`, `nature`, `landscape`, `mountain`, `forest`, `river`, `sky`, `abstract`, `people`, `team`, `success`, `growth`, `digital`, `future`, `innovation`, `background`, `wallpaper`
 
-Good queries describe a physical object, scene, or action visible in a photo:
-- ✅ `"robot arm welding factory"`
-- ✅ `"laptop screen code terminal"`
-- ✅ `"server rack blue light"`
-- ❌ `"smart automation future"`
-- ❌ `"digital transformation business"`
+`RPA`, `IA`, `API` are acronyms unknown to Unsplash tags — they return random unrelated results.
+
+---
+
+#### Rule 5 — Always English, 3–5 concrete words
+
+- ✅ `"automation workflow flat illustration"`
+- ✅ `"server rack data center"`
+- ✅ `"decision tree flat illustration"`
+- ❌ `"RPA automation"` (acronym)
+- ❌ `"artificial intelligence business"` (too generic)
+- ❌ `"digital transformation technology"` (banned terms)
 
 ### How to fetch an image
 
 ```python
-def fetch_unsplash(query: str, orientation: str = "portrait") -> str | None:
+def fetch_unsplash(query: str, orientation: str = "squarish") -> str | None:
     """
-    Returns the best image URL for the query, or None if unavailable.
-    Always validate the query against the rules above before calling this function.
-    orientation: 'portrait' for hero full-bg, 'squarish' for decorative blocks
+    Fetches an image URL from Unsplash.
+
+    orientation:
+      - 'portrait'  → Hero full-background slides
+      - 'squarish'  → Decorative blocks (B1/B2 layouts)
+      - 'landscape' → B2 top-banner (wide, short)
+
+    Always run the Image Type Decision and Query Strategy rules before calling.
+    Illustration queries (ending in 'flat illustration') work with any orientation.
+    Returns None on any failure — caller must handle gracefully.
     """
     if not UNSPLASH_KEY or UNSPLASH_KEY == "INJECTED_BY_N8N_SYSTEM_PROMPT":
         return None
@@ -137,7 +205,7 @@ def fetch_unsplash(query: str, orientation: str = "portrait") -> str | None:
         params = urllib.parse.urlencode({
             "query": query,
             "orientation": orientation,
-            "per_page": 3,
+            "per_page": 5,       # fetch 5, pick the most relevant-looking result
             "order_by": "relevant"
         })
         url = f"https://api.unsplash.com/search/photos?{params}"
@@ -149,11 +217,36 @@ def fetch_unsplash(query: str, orientation: str = "portrait") -> str | None:
             data = json.loads(resp.read())
             results = data.get("results", [])
             if results:
-                # Pick the first result — per_page:3 gives the API room to rank better
                 return results[0]["urls"]["regular"]
     except Exception:
         pass
     return None
+
+
+# ── Image fetch plan — run BEFORE building any HTML ──────────────────────
+# For each slide that gets an image:
+#   1. Classify topic: abstract → illustration query / physical → photo query
+#   2. Pick query from library or derive following the rules
+#   3. Call fetch_unsplash() with appropriate orientation
+#   4. Store result; None = render that slide without image
+
+# Example for a RPA+IA carousel:
+images = {
+    # Hero (slide 1) — physical: robot/automation hardware, portrait
+    "hero":     fetch_unsplash("robot arm factory conveyor", orientation="portrait"),
+
+    # Solution (slide 3) — abstract: concept, squarish illustration
+    "solution": fetch_unsplash("automation workflow flat illustration", orientation="squarish"),
+
+    # Features (slide 4) — depends on specific features listed:
+    #   if features are abstract concepts → illustration
+    #   if features involve physical things (docs, screens) → photo
+    "features": fetch_unsplash("productivity efficiency flat illustration", orientation="landscape"),
+
+    # How-to (slide 6) — usually physical steps, squarish photo
+    "howto":    fetch_unsplash("workflow process flat illustration", orientation="squarish"),
+}
+# Adjust queries per carousel topic — these are examples for RPA+IA theme
 ```
 
 ---
@@ -187,49 +280,82 @@ If `fetch_unsplash()` returns `None` for the Hero, fall back to `LIGHT_BG` backg
 
 ### B — Decorative block layouts (Solution + Content slides)
 
-These slides alternate between two layout variants to create visual rhythm across the carousel.
-Choose the variant based on the slide's position — odd-indexed content slides use Layout B1, even-indexed use Layout B2.
+These slides alternate between two layout variants. The key rule: **text and image must NEVER overlap**. Each element has its own reserved zone.
 
-#### B1 — Image right, text left (odd content slides)
+#### B1 — Image right, text left (odd-indexed content slides: 3, 6 ...)
 
-Text occupies the left 560px; image floats on the right, vertically centered.
+The slide is split into two non-overlapping columns:
+- **Left column** (x: 0–620px): all text content — uses `position:absolute`
+- **Right column** (x: 630–1008px): decorative image — uses `position:absolute`
 
 ```html
-<!-- Decorative image — right side, vertically centered -->
-<img src="{IMAGE_URL}"
-     style="position:absolute;right:72px;top:50%;transform:translateY(-50%);
-            width:390px;height:460px;object-fit:cover;border-radius:20px;
-            z-index:2;opacity:0.95;box-shadow:0 20px 56px rgba(0,0,0,0.22);">
+<!-- .slide must have position:relative, NO justify-content flex, NO padding interference -->
+<div class="slide" style="justify-content:flex-start;padding:0;">
 
-<!-- Content wrapper — left side only -->
-<div style="position:relative;z-index:3;max-width:560px;">
-  <!-- tag, headline, body content -->
+  <!-- Decorative image — RIGHT column, strictly contained -->
+  <img src="{IMAGE_URL}"
+       style="position:absolute;right:0;top:0;bottom:0;
+              width:420px;height:100%;object-fit:cover;
+              border-radius:24px 0 0 24px;
+              z-index:1;opacity:0.95;">
+
+  <!-- Optional dark gradient fade on image left edge so text doesn't clash -->
+  <div style="position:absolute;right:380px;top:0;bottom:0;width:80px;
+              background:linear-gradient(to right,{SLIDE_BG},transparent);z-index:2;"></div>
+
+  <!-- Text content — LEFT column, absolutely positioned, never overlaps image -->
+  <div style="position:absolute;left:90px;top:0;bottom:0;width:530px;
+              display:flex;flex-direction:column;justify-content:center;
+              padding-bottom:120px;z-index:3;">
+    <!-- tag label -->
+    <!-- headline (max 3 lines at 88px) -->
+    <!-- body text -->
+  </div>
+
+  <!-- Progress bar -->
+  <!-- Swipe arrow -->
 </div>
 ```
 
-#### B2 — Image top-right banner, text below (even content slides)
+#### B2 — Image top-right quadrant, text bottom-left (even-indexed content slides: 4 ...)
 
-A wide banner image sits in the upper-right quadrant; text is anchored below it on the left.
+The slide is split into two non-overlapping zones:
+- **Top-right zone** (right:90px, top:90px): image block — fixed height 380px
+- **Bottom zone** (top: 520px onwards): all text content
 
 ```html
-<!-- Decorative image — top right banner -->
-<img src="{IMAGE_URL}"
-     style="position:absolute;right:72px;top:100px;
-            width:440px;height:300px;object-fit:cover;border-radius:20px;
-            z-index:2;opacity:0.95;box-shadow:0 16px 48px rgba(0,0,0,0.18);">
+<div class="slide" style="justify-content:flex-start;padding:0;">
 
-<!-- Content wrapper — full width, positioned in lower half -->
-<div style="position:relative;z-index:3;margin-top:440px;">
-  <!-- tag, headline, body content -->
+  <!-- Decorative image — TOP RIGHT, fixed position -->
+  <img src="{IMAGE_URL}"
+       style="position:absolute;right:90px;top:90px;
+              width:460px;height:380px;object-fit:cover;
+              border-radius:20px;z-index:1;opacity:0.95;
+              box-shadow:0 16px 48px rgba(0,0,0,0.18);">
+
+  <!-- Text content — BOTTOM HALF, starts below the image zone -->
+  <div style="position:absolute;left:90px;top:520px;right:90px;
+              bottom:120px;display:flex;flex-direction:column;
+              justify-content:flex-start;z-index:3;">
+    <!-- tag label -->
+    <!-- headline (max 2 lines at 88px) -->
+    <!-- body text -->
+  </div>
+
+  <!-- Progress bar -->
+  <!-- Swipe arrow -->
 </div>
 ```
 
-#### Rules for both B layouts:
-- **Never reduce font sizes** — keep the mandatory typography scale
-- If content is too long → remove words, not pixels
-- If `fetch_unsplash()` returns `None` → render slide at full width, no layout shift
-- On **gradient/dark slides** using B1: add `box-shadow:0 20px 56px rgba(0,0,0,0.4)` for depth
-- On **light slides** using B1 or B2: shadow is `rgba(0,0,0,0.18)`
+#### ⚠️ Critical rules for ALL B layouts:
+
+1. **Use `position:absolute` for BOTH the image and the text wrapper** — never rely on flexbox flow when image is present, it causes overlap
+2. **Text wrapper must have explicit `left`, `top`, `bottom` or `height`** — never just `max-width`
+3. **Image and text zones must not share any pixel range** — verify coordinates before writing HTML
+4. **Never reduce font sizes** — if text overflows its zone, remove words from copy
+5. **If `fetch_unsplash()` returns `None`** → switch `.slide` back to `justify-content:center; padding:100px 90px 140px` and render full width
+6. **Gradient/dark slides B1**: image opacity `0.88`, add fade gradient div as shown above
+7. **Light slides B1 or B2**: image opacity `0.97`, shadow `rgba(0,0,0,0.14)`
 
 ---
 
@@ -469,20 +595,37 @@ Content must **never overlap the progress bar** — `140px` bottom padding guara
   </style>
 </head>
 <body>
-  <div class="slide">
-    <!-- [Hero only] background image (z-index:0) + dark overlay (z-index:1) -->
-    <!-- [B1] decorative image right: absolute right:72px, vertically centered, z-index:2 -->
-    <!-- [B2] decorative image top-right: absolute right:72px top:100px, z-index:2 -->
-    <!-- content wrapper (z-index:3) -->
-    <!--   B1: max-width:560px -->
-    <!--   B2: margin-top:440px -->
-    <!--   No image: full width -->
-      <!-- tag label -->
-      <!-- headline -->
-      <!-- subheadline or body content -->
-    <!-- /content wrapper -->
+  <!-- ═══ NO IMAGE (Problem, CTA, Details) ═══ -->
+  <div class="slide" style="justify-content:center;padding:100px 90px 140px;">
+    <!-- tag, headline, body -->
     <!-- progress bar (absolute, z-index:10) -->
-    <!-- swipe arrow (absolute, z-index:9, all except last) -->
+    <!-- swipe arrow (absolute, z-index:9) -->
+  </div>
+
+  <!-- ═══ HERO — layout A (full background) ═══ -->
+  <div class="slide" style="justify-content:center;padding:100px 90px 140px;">
+    <!-- bg image: position:absolute;inset:0;z-index:0 -->
+    <!-- dark overlay: position:absolute;inset:0;background:rgba(0,0,0,0.55);z-index:1 -->
+    <!-- content: position:relative;z-index:2 — tag, headline, subheadline -->
+    <!-- progress bar (absolute, z-index:10) -->
+    <!-- swipe arrow (absolute, z-index:9) -->
+  </div>
+
+  <!-- ═══ B1 — image right column, text left column ═══ -->
+  <div class="slide" style="justify-content:flex-start;padding:0;">
+    <!-- image: position:absolute;right:0;top:0;bottom:0;width:420px;z-index:1 -->
+    <!-- fade div: position:absolute;right:380px;width:80px;z-index:2 -->
+    <!-- text: position:absolute;left:90px;top:0;bottom:0;width:530px;padding-bottom:120px;z-index:3 -->
+    <!-- progress bar (absolute, z-index:10) -->
+    <!-- swipe arrow (absolute, z-index:9) -->
+  </div>
+
+  <!-- ═══ B2 — image top-right, text bottom ═══ -->
+  <div class="slide" style="justify-content:flex-start;padding:0;">
+    <!-- image: position:absolute;right:90px;top:90px;width:460px;height:380px;z-index:1 -->
+    <!-- text: position:absolute;left:90px;top:520px;right:90px;bottom:120px;z-index:3 -->
+    <!-- progress bar (absolute, z-index:10) -->
+    <!-- swipe arrow (absolute, z-index:9) -->
   </div>
 </body>
 </html>
@@ -492,24 +635,25 @@ Content must **never overlap the progress bar** — `140px` bottom padding guara
 
 ## Generation Flow
 
-### Step 1 — Fetch all Unsplash images upfront
+### Step 1 — Classify topics and fetch all Unsplash images upfront
 
-Before building any HTML, fetch all needed images in sequence. Store results in a dict.
+Before writing any HTML, run the classification and fetch for every slide that needs an image.
 
 ```python
-import os, json, urllib.request, urllib.parse
+import json, urllib.request, urllib.parse
 from pathlib import Path
 
-UNSPLASH_KEY = os.environ.get("UNSPLASH_ACCESS_KEY", "")
+# Key injected by n8n system prompt — replace placeholder with actual value
+UNSPLASH_KEY = "INJECTED_BY_N8N_SYSTEM_PROMPT"
 
-def fetch_unsplash(query: str, orientation: str = "portrait") -> str | None:
-    if not UNSPLASH_KEY:
+def fetch_unsplash(query: str, orientation: str = "squarish") -> str | None:
+    if not UNSPLASH_KEY or UNSPLASH_KEY == "INJECTED_BY_N8N_SYSTEM_PROMPT":
         return None
     try:
         params = urllib.parse.urlencode({
             "query": query,
             "orientation": orientation,
-            "per_page": 1,
+            "per_page": 5,
             "order_by": "relevant"
         })
         req = urllib.request.Request(
@@ -525,15 +669,25 @@ def fetch_unsplash(query: str, orientation: str = "portrait") -> str | None:
         pass
     return None
 
-# Fetch images for each slide that needs one
-# Derive queries from the carousel topic
+# ── STEP A: For each image slide, classify topic then pick query ──────────
+#
+# Abstract concept (no physical photo possible) → "... flat illustration"
+# Physical thing (can be photographed)          → concrete noun query
+#
+# Hero always uses orientation="portrait"
+# B1 decorative uses orientation="squarish"
+# B2 top-banner uses orientation="landscape"
+#
+# Replace the example queries below with ones matching the actual carousel topic,
+# following the pre-validated library in the Query Strategy section above.
+
 images = {
-    "hero":     fetch_unsplash("{topic_query}", orientation="portrait"),
-    "solution": fetch_unsplash("{topic_query}", orientation="landscape"),
-    "features": fetch_unsplash("{topic_query}", orientation="landscape"),
-    "howto":    fetch_unsplash("{topic_query}", orientation="landscape"),
+    "hero":     fetch_unsplash("robot arm factory conveyor",              orientation="portrait"),
+    "solution": fetch_unsplash("automation workflow flat illustration",   orientation="squarish"),
+    "features": fetch_unsplash("productivity efficiency flat illustration", orientation="landscape"),
+    "howto":    fetch_unsplash("workflow process flat illustration",       orientation="squarish"),
 }
-# Any None value means: render that slide without an image — never raise errors
+# None = render that slide without image — never raise errors, never halt generation
 ```
 
 ### Step 2 — Build all slide HTML strings
