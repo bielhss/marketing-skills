@@ -123,6 +123,50 @@ Examples:
 
 ---
 
+### ⚠️ MANDATORY IMAGE FETCH SEQUENCE
+
+Before writing ANY HTML, you MUST:
+
+1. **Identify which slides need images** — Hero (slide 1), Solution (slide 3),
+   Features (slide 4), How-to (slide 6)
+2. **Call image-search tool ONCE per image slide** — never reuse the same URL
+   across multiple slides
+3. **Store all returned URLs** before starting HTML generation
+4. **Each slide gets its own unique image** — calling the tool once and using
+   that URL on 4 different slides is a violation of this rule
+
+**Example tool call sequence for a standard 7-slide carousel:**
+
+```
+Tool call 1: Search Unsplash
+  query: "office team laptop working"
+  orientation: "portrait"
+  → store URL as hero_image
+
+Tool call 2: Search Unsplash
+  query: "workflow automation flat illustration"
+  orientation: "landscape"
+  → store URL as solution_image
+
+Tool call 3: Search Unsplash
+  query: "productivity efficiency flat illustration"
+  orientation: "landscape"
+  → store URL as features_image
+
+Tool call 4: Search Unsplash
+  query: "workflow process flat illustration"
+  orientation: "landscape"
+  → store URL as howto_image
+```
+
+**Total tool calls required: 4 (one per image slide)**
+
+If you generate HTML before making all 4 tool calls, you are not following
+this skill correctly. If you use the same image URL on multiple slides, you
+are not following this skill correctly.
+
+---
+
 ## Step 3: Layout Selection
 
 For each image slide, pick one of three layouts at random.
@@ -589,16 +633,6 @@ return slides.map(slide => ({
 
 ## Design Principles
 
-<<<<<<< HEAD
-1. **Images are optional enhancements** — slides always render correctly without them
-2. **Hero image creates impact** — dark overlay ensures text legibility at any image
-3. **Decorative images add context** — right-side positioning never competes with copy
-4. **Content always wins** — if image + text don't fit, remove words, never shrink fonts
-5. **Light/dark alternation** — visual rhythm across swipes
-6. **Typography is fixed** — same scale on every slide, no exceptions
-7. **Vertical centering by default** — `flex-end` only for 4+ item lists
-8. **One JSON output** — all slides as HTML strings, ready for html2png.dev via n8n
-=======
 1. **image-search handles all image fetching** — never call provider tools directly
 2. **Images are optional enhancements** — slides always render correctly without them
 3. **Hero image creates impact** — dark overlay ensures text legibility
@@ -607,4 +641,3 @@ return slides.map(slide => ({
 6. **Light/dark alternation** — visual rhythm across swipes
 7. **Typography is fixed** — same scale on every slide, no exceptions
 8. **One JSON output** — all slides as HTML strings, ready for html2png.dev via n8n
->>>>>>> 58fdcef (skill)
