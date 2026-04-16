@@ -43,7 +43,19 @@ If the user provides a website URL or brand assets, derive colors and style from
 
 ### API Setup
 
-The Unsplash API key is injected by n8n directly into the system prompt as a variable. It will appear in the context as a plain string — read it from there and assign it to `UNSPLASH_KEY` in Python before making any requests:
+The Unsplash API key is injected by n8n into the system prompt as a plain text line in this format:
+```
+Unsplash API Key: 926582kIHOqYSR-Dl43mr8JxrPouwnfabkJXjibDJB41mraXQ
+```
+
+**⚠️ When writing the Python code, you MUST read the actual key value from the system prompt context and hardcode it into the `UNSPLASH_KEY` variable.** Do not copy the placeholder — copy the real key string that is visible in your context window.
+
+If the system prompt contains `Unsplash API Key: abc123xyz`, then your Python must have:
+```python
+UNSPLASH_KEY = "abc123xyz"
+```
+
+Never leave `UNSPLASH_KEY` as a placeholder string. If you cannot find the key in the context, set `UNSPLASH_KEY = ""` and skip image fetching entirely.
 
 ```python
 import urllib.request
@@ -53,7 +65,11 @@ import json
 # The key is injected by n8n into the system prompt as {{ $credentials.unsplash_key }}
 # When writing the Python code, replace the placeholder below with the actual value
 # that was injected — it will be visible in the conversation context as a string.
-UNSPLASH_KEY = "INJECTED_BY_N8N_SYSTEM_PROMPT"
+# ⚠️ CRITICAL: Read the Unsplash API Key from the system prompt context.
+# The key was injected as: "Unsplash API Key: <value>"
+# Extract the actual key value from that line and assign it here — never leave it as a placeholder.
+# Example: if system prompt contains "Unsplash API Key: 926582kIH..." then:
+UNSPLASH_KEY = "<extract_the_actual_key_value_from_system_prompt_context>"
 ```
 
 **How to configure in n8n:**
@@ -199,7 +215,7 @@ def fetch_unsplash(query: str, orientation: str = "squarish") -> str | None:
     Illustration queries (ending in 'flat illustration') work with any orientation.
     Returns None on any failure — caller must handle gracefully.
     """
-    if not UNSPLASH_KEY or UNSPLASH_KEY == "INJECTED_BY_N8N_SYSTEM_PROMPT":
+    if not UNSPLASH_KEY or UNSPLASH_KEY.startswith("<extract"):  # guard: key was not properly set
         return None
     try:
         params = urllib.parse.urlencode({
@@ -644,10 +660,14 @@ import json, urllib.request, urllib.parse
 from pathlib import Path
 
 # Key injected by n8n system prompt — replace placeholder with actual value
-UNSPLASH_KEY = "INJECTED_BY_N8N_SYSTEM_PROMPT"
+# ⚠️ CRITICAL: Read the Unsplash API Key from the system prompt context.
+# The key was injected as: "Unsplash API Key: <value>"
+# Extract the actual key value from that line and assign it here — never leave it as a placeholder.
+# Example: if system prompt contains "Unsplash API Key: 926582kIH..." then:
+UNSPLASH_KEY = "<extract_the_actual_key_value_from_system_prompt_context>"
 
 def fetch_unsplash(query: str, orientation: str = "squarish") -> str | None:
-    if not UNSPLASH_KEY or UNSPLASH_KEY == "INJECTED_BY_N8N_SYSTEM_PROMPT":
+    if not UNSPLASH_KEY or UNSPLASH_KEY.startswith("<extract"):  # guard: key was not properly set
         return None
     try:
         params = urllib.parse.urlencode({
