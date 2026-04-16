@@ -202,14 +202,13 @@ Ask internally:
 ### How to fetch an image
 
 ```python
-def fetch_unsplash(query: str, orientation: str = "squarish") -> str | None:
+def fetch_unsplash(query: str, orientation: str = "landscape") -> str | None:
     """
     Fetches an image URL from Unsplash.
 
     orientation:
-      - 'portrait'  → Hero full-background slides
-      - 'squarish'  → Decorative blocks (B1/B2 layouts)
-      - 'landscape' → B2 top-banner (wide, short)
+      - 'portrait'   → Hero full-background slides only
+      - 'landscape'  → C1 and C2 image-top layouts (default for all content slides)
 
     Always run the Image Type Decision and Query Strategy rules before calling.
     Illustration queries (ending in 'flat illustration') work with any orientation.
@@ -251,17 +250,18 @@ images = {
     # Hero (slide 1) — physical: robot/automation hardware, portrait
     "hero":     fetch_unsplash("robot arm factory conveyor", orientation="portrait"),
 
-    # Solution (slide 3) — abstract: concept, squarish illustration
-    "solution": fetch_unsplash("automation workflow flat illustration", orientation="squarish"),
+    # Solution (slide 3) — abstract: concept, landscape for C1 top-banner
+    "solution": fetch_unsplash("automation workflow flat illustration", orientation="landscape"),
 
     # Features (slide 4) — depends on specific features listed:
     #   if features are abstract concepts → illustration
     #   if features involve physical things (docs, screens) → photo
     "features": fetch_unsplash("productivity efficiency flat illustration", orientation="landscape"),
 
-    # How-to (slide 6) — usually physical steps, squarish photo
-    "howto":    fetch_unsplash("workflow process flat illustration", orientation="squarish"),
+    # How-to (slide 6) — landscape for C1 top-banner
+    "howto":    fetch_unsplash("workflow process flat illustration", orientation="landscape"),
 }
+# C1 and C2 layouts always use landscape orientation — wide images fill the top banner better
 # Adjust queries per carousel topic — these are examples for RPA+IA theme
 ```
 
@@ -294,68 +294,33 @@ When using a dark overlay on the Hero:
 
 If `fetch_unsplash()` returns `None` for the Hero, fall back to `LIGHT_BG` background — no overlay needed.
 
-### B — Decorative block layouts (Solution + Content slides)
+### B — Image-top layouts (Solution + Content slides)
 
-These slides alternate between two layout variants. The key rule: **text and image must NEVER overlap**. Each element has its own reserved zone.
+These slides place the image in the **top portion** and the text in the **bottom portion** — a clean, native-Instagram feel. Two layout variants alternate for visual rhythm.
 
-#### B1 — Image right, text left (odd-indexed content slides: 3, 6 ...)
+#### C1 — Full-width image top, text bottom (odd-indexed content slides: 3, 6 ...)
 
-The slide is split into two non-overlapping columns:
-- **Left column** (x: 0–620px): all text content — uses `position:absolute`
-- **Right column** (x: 630–1008px): decorative image — uses `position:absolute`
-
-```html
-<!-- .slide must have position:relative, NO justify-content flex, NO padding interference -->
-<div class="slide" style="justify-content:flex-start;padding:0;">
-
-  <!-- Decorative image — RIGHT column, strictly contained -->
-  <img src="{IMAGE_URL}"
-       style="position:absolute;right:0;top:0;bottom:0;
-              width:420px;height:100%;object-fit:cover;
-              border-radius:24px 0 0 24px;
-              z-index:1;opacity:0.95;">
-
-  <!-- Optional dark gradient fade on image left edge so text doesn't clash -->
-  <div style="position:absolute;right:380px;top:0;bottom:0;width:80px;
-              background:linear-gradient(to right,{SLIDE_BG},transparent);z-index:2;"></div>
-
-  <!-- Text content — LEFT column, absolutely positioned, never overlaps image -->
-  <div style="position:absolute;left:90px;top:0;bottom:0;width:530px;
-              display:flex;flex-direction:column;justify-content:center;
-              padding-bottom:120px;z-index:3;">
-    <!-- tag label -->
-    <!-- headline (max 3 lines at 88px) -->
-    <!-- body text -->
-  </div>
-
-  <!-- Progress bar -->
-  <!-- Swipe arrow -->
-</div>
-```
-
-#### B2 — Image top-right quadrant, text bottom-left (even-indexed content slides: 4 ...)
-
-The slide is split into two non-overlapping zones:
-- **Top-right zone** (right:90px, top:90px): image block — fixed height 380px
-- **Bottom zone** (top: 520px onwards): all text content
+The slide is divided vertically:
+- **Top zone** (0–700px height): full-width image with rounded bottom corners
+- **Bottom zone** (700px–1350px): text content on slide background color
 
 ```html
 <div class="slide" style="justify-content:flex-start;padding:0;">
 
-  <!-- Decorative image — TOP RIGHT, fixed position -->
+  <!-- Full-width image — TOP ZONE, rounded bottom corners -->
   <img src="{IMAGE_URL}"
-       style="position:absolute;right:90px;top:90px;
-              width:460px;height:380px;object-fit:cover;
-              border-radius:20px;z-index:1;opacity:0.95;
-              box-shadow:0 16px 48px rgba(0,0,0,0.18);">
+       style="position:absolute;top:0;left:0;right:0;
+              width:100%;height:700px;object-fit:cover;
+              border-radius:0 0 32px 32px;
+              z-index:1;opacity:0.97;">
 
-  <!-- Text content — BOTTOM HALF, starts below the image zone -->
-  <div style="position:absolute;left:90px;top:520px;right:90px;
-              bottom:120px;display:flex;flex-direction:column;
+  <!-- Text content — BOTTOM ZONE, starts below image -->
+  <div style="position:absolute;left:80px;top:740px;right:80px;
+              bottom:140px;display:flex;flex-direction:column;
               justify-content:flex-start;z-index:3;">
     <!-- tag label -->
     <!-- headline (max 2 lines at 88px) -->
-    <!-- body text -->
+    <!-- body text (52px, font-weight:500) -->
   </div>
 
   <!-- Progress bar -->
@@ -363,15 +328,49 @@ The slide is split into two non-overlapping zones:
 </div>
 ```
 
-#### ⚠️ Critical rules for ALL B layouts:
+#### C2 — Image top with floating card overlay (even-indexed content slides: 4 ...)
 
-1. **Use `position:absolute` for BOTH the image and the text wrapper** — never rely on flexbox flow when image is present, it causes overlap
-2. **Text wrapper must have explicit `left`, `top`, `bottom` or `height`** — never just `max-width`
-3. **Image and text zones must not share any pixel range** — verify coordinates before writing HTML
-4. **Never reduce font sizes** — if text overflows its zone, remove words from copy
-5. **If `fetch_unsplash()` returns `None`** → switch `.slide` back to `justify-content:center; padding:100px 90px 140px` and render full width
-6. **Gradient/dark slides B1**: image opacity `0.88`, add fade gradient div as shown above
-7. **Light slides B1 or B2**: image opacity `0.97`, shadow `rgba(0,0,0,0.14)`
+The image fills the top ~60% and a white/dark card floats at the bottom with a subtle shadow, creating depth.
+
+```html
+<div class="slide" style="justify-content:flex-start;padding:0;background:{SLIDE_BG};">
+
+  <!-- Full-width image — bleeds top edge, rounded bottom -->
+  <img src="{IMAGE_URL}"
+       style="position:absolute;top:0;left:0;right:0;
+              width:100%;height:780px;object-fit:cover;
+              z-index:1;">
+
+  <!-- Floating card — overlaps bottom of image slightly -->
+  <div style="position:absolute;left:60px;right:60px;top:680px;bottom:100px;
+              background:{CARD_BG};border-radius:28px;
+              box-shadow:0 -8px 40px rgba(0,0,0,0.18);
+              padding:52px 60px 60px;
+              display:flex;flex-direction:column;justify-content:flex-start;
+              z-index:4;">
+    <!-- tag label -->
+    <!-- headline (max 2 lines at 88px) -->
+    <!-- body text (52px, font-weight:500) -->
+  </div>
+
+  <!-- Progress bar (sits on top of card, z-index:10) -->
+  <!-- Swipe arrow (z-index:9) -->
+</div>
+```
+
+**CARD_BG values:**
+- Light slides: `#FFFFFF` or `{LIGHT_BG}` — use `color:#1a1a1a` for text
+- Dark slides: `{DARK_BG}` — use `color:#ffffff` for text
+- Gradient accent: `linear-gradient(135deg, {BRAND_DARK}, {BRAND_PRIMARY})` — use `color:#ffffff`
+
+#### ⚠️ Critical rules for ALL C layouts:
+
+1. **Image and text zones must not share any pixel range** — top zone ends at 700px (C1) or 780px (C2), text starts below
+2. **Never reduce font sizes** — if text overflows its zone, remove words from copy
+3. **If `fetch_unsplash()` returns `None`** → switch `.slide` back to `justify-content:center; padding:100px 90px 140px` and render full width without image zone
+4. **C2 card shadow** always uses `0 -8px 40px rgba(0,0,0,0.18)` — the negative Y creates the "lifting" effect
+5. **Image orientation for C1/C2**: always use `orientation="landscape"` — wide images fill the top banner better than portrait
+6. **Never use B1/B2 (side-by-side) layouts** — all image slides use C1 or C2 exclusively
 
 ---
 
@@ -474,18 +473,19 @@ Content must **never overlap the progress bar** — `140px` bottom padding guara
 |---|------|------------|-------|--------|
 | 1 | Hero | image + dark overlay | ✅ Full background | A — overlay |
 | 2 | Problem | DARK_BG | ❌ | — |
-| 3 | Solution | Brand gradient | ✅ Decorative block | B1 — image right |
-| 4 | Features | LIGHT_BG | ✅ Decorative block | B2 — image top-right banner |
+| 3 | Solution | LIGHT_BG | ✅ Image top | C1 — full-width image top, text bottom |
+| 4 | Features | DARK_BG or LIGHT_BG | ✅ Image top + floating card | C2 — image top, floating card |
 | 5 | Details | DARK_BG | ❌ | — |
-| 6 | How-to | LIGHT_BG | ✅ Decorative block | B1 — image right |
+| 6 | How-to | LIGHT_BG | ✅ Image top | C1 — full-width image top, text bottom |
 | 7 | CTA | Brand gradient | ❌ | — |
 
 ### Listicle / Tutorial / Comparação
 
-- Apply image decoration to **content slides only** (light or gradient background)
-- Dark background slides never receive images
-- Alternate B1 and B2 layouts between consecutive image slides for visual rhythm
+- Apply image to **content slides only** (light or dark background)
+- Dark background slides may use C2 with a dark card overlay
+- Alternate C1 and C2 layouts between consecutive image slides for visual rhythm
 - Never apply the same layout variant to two consecutive image slides
+- Always use `orientation="landscape"` when fetching images for C1 and C2 layouts
 
 ---
 
@@ -627,19 +627,18 @@ Content must **never overlap the progress bar** — `140px` bottom padding guara
     <!-- swipe arrow (absolute, z-index:9) -->
   </div>
 
-  <!-- ═══ B1 — image right column, text left column ═══ -->
+  <!-- ═══ C1 — full-width image top, text bottom ═══ -->
   <div class="slide" style="justify-content:flex-start;padding:0;">
-    <!-- image: position:absolute;right:0;top:0;bottom:0;width:420px;z-index:1 -->
-    <!-- fade div: position:absolute;right:380px;width:80px;z-index:2 -->
-    <!-- text: position:absolute;left:90px;top:0;bottom:0;width:530px;padding-bottom:120px;z-index:3 -->
+    <!-- image: position:absolute;top:0;left:0;right:0;width:100%;height:700px;object-fit:cover;border-radius:0 0 32px 32px;z-index:1 -->
+    <!-- text: position:absolute;left:80px;top:740px;right:80px;bottom:140px;z-index:3 -->
     <!-- progress bar (absolute, z-index:10) -->
     <!-- swipe arrow (absolute, z-index:9) -->
   </div>
 
-  <!-- ═══ B2 — image top-right, text bottom ═══ -->
+  <!-- ═══ C2 — image top, floating card overlay ═══ -->
   <div class="slide" style="justify-content:flex-start;padding:0;">
-    <!-- image: position:absolute;right:90px;top:90px;width:460px;height:380px;z-index:1 -->
-    <!-- text: position:absolute;left:90px;top:520px;right:90px;bottom:120px;z-index:3 -->
+    <!-- image: position:absolute;top:0;left:0;right:0;width:100%;height:780px;object-fit:cover;z-index:1 -->
+    <!-- card: position:absolute;left:60px;right:60px;top:680px;bottom:100px;border-radius:28px;box-shadow:0 -8px 40px rgba(0,0,0,0.18);padding:52px 60px;z-index:4 -->
     <!-- progress bar (absolute, z-index:10) -->
     <!-- swipe arrow (absolute, z-index:9) -->
   </div>
@@ -666,7 +665,7 @@ from pathlib import Path
 # Example: if system prompt contains "Unsplash API Key: 926582kIH..." then:
 UNSPLASH_KEY = "<extract_the_actual_key_value_from_system_prompt_context>"
 
-def fetch_unsplash(query: str, orientation: str = "squarish") -> str | None:
+def fetch_unsplash(query: str, orientation: str = "landscape") -> str | None:
     if not UNSPLASH_KEY or UNSPLASH_KEY.startswith("<extract"):  # guard: key was not properly set
         return None
     try:
@@ -695,17 +694,16 @@ def fetch_unsplash(query: str, orientation: str = "squarish") -> str | None:
 # Physical thing (can be photographed)          → concrete noun query
 #
 # Hero always uses orientation="portrait"
-# B1 decorative uses orientation="squarish"
-# B2 top-banner uses orientation="landscape"
+# C1 and C2 slides always use orientation="landscape" (full-width top banner)
 #
 # Replace the example queries below with ones matching the actual carousel topic,
 # following the pre-validated library in the Query Strategy section above.
 
 images = {
-    "hero":     fetch_unsplash("robot arm factory conveyor",              orientation="portrait"),
-    "solution": fetch_unsplash("automation workflow flat illustration",   orientation="squarish"),
+    "hero":     fetch_unsplash("robot arm factory conveyor",               orientation="portrait"),
+    "solution": fetch_unsplash("automation workflow flat illustration",    orientation="landscape"),
     "features": fetch_unsplash("productivity efficiency flat illustration", orientation="landscape"),
-    "howto":    fetch_unsplash("workflow process flat illustration",       orientation="squarish"),
+    "howto":    fetch_unsplash("workflow process flat illustration",        orientation="landscape"),
 }
 # None = render that slide without image — never raise errors, never halt generation
 ```
