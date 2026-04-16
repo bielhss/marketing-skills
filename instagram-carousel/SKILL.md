@@ -4,19 +4,19 @@ description: >
   Creates high-quality Instagram carousels as individual HTML strings
   (1080×1350px), one per slide, packed into a JSON ready for n8n + html2png.dev.
   Handles the full workflow: brand setup, slide copy, visual design system
-  (colors, fonts, components), and HTML generation. Use this skill whenever the
-  user asks to create, design, or generate an Instagram carousel, carrossel,
-  slides para Instagram, or any Instagram multi-image post — even if they
-  don't explicitly say "carousel" or "skill". Also trigger for requests to
-  "create a post with multiple slides", "fazer carrossel", or "exportar slides
-  para o Instagram".
+  (colors, fonts, components), Unsplash image fetching, and HTML generation.
+  Use this skill whenever the user asks to create, design, or generate an
+  Instagram carousel, carrossel, slides para Instagram, or any Instagram
+  multi-image post — even if they don't explicitly say "carousel" or "skill".
+  Also trigger for requests to "create a post with multiple slides",
+  "fazer carrossel", or "exportar slides para o Instagram".
 ---
 
 # Instagram Carousel Generator
 
 Generates fully self-contained HTML strings — one per slide — at exactly
-1080×1350px, then outputs a single JSON with all slides ready for
-html2png.dev conversion via n8n.
+1080×1350px, fetching contextual images from Unsplash where appropriate,
+then outputs a single JSON with all slides ready for html2png.dev via n8n.
 
 ---
 
@@ -39,63 +39,161 @@ If the user provides a website URL or brand assets, derive colors and style from
 
 ---
 
-## Handling User-Provided Images
+## Step 2: Fetch Unsplash Images
 
-**This section applies from the very first HTML generation — not only during export.**
+### API Setup
 
-When the user provides an image file path (e.g., `/home/user/gestante.png`, `/mnt/user-data/uploads/foto.jpg`):
-
-### ⚠️ Critical Rules
-
-1. **NEVER use relative paths** (`gestante.png`) — they break in every browser context except the exact folder the HTML lives in.
-2. **NEVER use `background: url(filepath)`** — leads to 1.5MB+ base64 inline strings that crash the browser parser.
-3. **ALWAYS embed as base64 `data:` URI** — works in preview, export, and any environment.
-4. **ALWAYS generate the HTML via Python** (`Path.write_text()`) — shell heredocs interpolate `$` and backticks, corrupting base64 strings.
-
-### Step-by-step: embed an image
-
-```bash
-# 1. Check the actual file format (extension may lie)
-file /path/to/image.png
-```
+The Unsplash API key is injected by n8n directly into the system prompt as a variable. It will appear in the context as a plain string — read it from there and assign it to `UNSPLASH_KEY` in Python before making any requests:
 
 ```python
-import base64
-from pathlib import Path
+import urllib.request
+import urllib.parse
+import json
 
-# 2. Read and encode
-img_path = Path("/path/to/image.png")
-mime = "image/jpeg"  # or "image/png" — check with `file` command
-b64 = base64.b64encode(img_path.read_bytes()).decode()
-data_uri = f"data:{mime};base64,{b64}"
-
-# 3. Inject into HTML template as a Python variable — never via shell
-html = f"""
-<div style="position:relative;width:100%;height:100%;">
-  <img src="{data_uri}"
-       style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;">
-  <div style="position:absolute;inset:0;background:rgba(255,255,255,0.35);z-index:1;"></div>
-  <!-- slide content goes here, z-index:2 -->
-</div>
-"""
+# The key is injected by n8n into the system prompt as {{ $credentials.unsplash_key }}
+# When writing the Python code, replace the placeholder below with the actual value
+# that was injected — it will be visible in the conversation context as a string.
+UNSPLASH_KEY = "INJECTED_BY_N8N_SYSTEM_PROMPT"
 ```
 
-### Image as slide background (most common use)
+**How to configure in n8n:**
+1. In the AI Agent node, open the **System Prompt**
+2. Create a credential of type **Header Auth** in n8n with:
+   - Name: `unsplash_key` (or any name you prefer)
+   - Value: your Unsplash Access Key
+3. Reference it in the system prompt with an expression:
+   ```
+   Unsplash API Key: {{ $credentials.unsplash_key.value }}
+   ```
+4. The agent will receive the key as plain text in its context and use it when following this skill
 
-```html
-<img src="{data_uri}"
-     style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;">
-<div style="position:absolute;inset:0;background:rgba(255,255,255,0.35);z-index:1;"></div>
-<!-- All slide content must have z-index:2 or higher -->
+If `UNSPLASH_KEY` is empty or missing from the context, skip all image fetching silently and generate slides without images — never raise an error or halt generation.
+
+### Which slides get images
+
+| Slide type | Image usage | Style |
+|---|---|---|
+| **Hero (slide 1)** | Full background with overlay | Dark overlay `rgba(0,0,0,0.45)` over image, content on top |
+| **Solution / Gradient** | Decorative element (right side) | Rounded image block, 420×420px, positioned right |
+| **Features / Steps (content slides)** | Decorative element (right side) | Rounded image block, 360×480px, positioned right |
+| Problem / Challenge | ❌ No image | Dark bg is enough |
+| CTA (last slide) | ❌ No image | Brand gradient is enough |
+
+### How to fetch an image
+
+```python
+def fetch_unsplash(query: str, orientation: str = "portrait") -> str | None:
+    """
+    Returns the best image URL for the query, or None if unavailable.
+    orientation: "portrait" for hero/full-bg, "landscape" for decorative elements
+    """
+    if not UNSPLASH_KEY or UNSPLASH_KEY == "INJECTED_BY_N8N_SYSTEM_PROMPT":
+        return None
+    try:
+        params = urllib.parse.urlencode({
+            "query": query,
+            "orientation": orientation,
+            "per_page": 1,
+            "order_by": "relevant"
+        })
+        url = f"https://api.unsplash.com/search/photos?{params}"
+        req = urllib.request.Request(url, headers={
+            "Authorization": f"Client-ID {UNSPLASH_KEY}",
+            "Accept-Version": "v1"
+        })
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read())
+            results = data.get("results", [])
+            if results:
+                # Use the "regular" size — good quality, not too heavy
+                return results[0]["urls"]["regular"]
+    except Exception:
+        pass
+    return None
 ```
 
-For dark slides, use `rgba(0,0,0,0.45)` as the overlay instead.
+### Query strategy
+
+Queries must be in **English**, descriptive, and topic-specific. Derive them from the slide content:
+
+| Slide topic | Example query |
+|---|---|
+| RPA + IA | `"robot automation artificial intelligence"` |
+| Decisão automática | `"data decision technology"` |
+| Processos empresariais | `"business workflow process"` |
+| Escalabilidade | `"growth scale technology"` |
+| Atendimento ao cliente | `"customer service support"` |
+
+Rules:
+- 2–4 words maximum
+- Always in English
+- Avoid brand names, people's names, or overly specific terms
+- Prefer abstract/conceptual terms over literal ones for better results
 
 ---
 
-## Step 2: Derive the Full Color System
+## Step 3: Embed Images in HTML
 
-From the user's brand colors, generate the full 6-token palette:
+### A — Full background with overlay (Hero slide)
+
+Used when `image_url` is returned for the Hero slide.
+
+```html
+<!-- Inside .slide div, before all content — z-index layering is critical -->
+
+<!-- Layer 0: background image -->
+<img src="{IMAGE_URL}"
+     style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;">
+
+<!-- Layer 1: dark overlay so text stays readable -->
+<div style="position:absolute;inset:0;background:rgba(0,0,0,0.52);z-index:1;"></div>
+
+<!-- Layer 2+: all slide content (text, logo, progress bar, arrow) -->
+```
+
+When using a dark overlay on the Hero:
+- Switch all text to white (`#fff`)
+- Use `rgba(255,255,255,0.6)` for the tag label
+- Use `rgba(255,255,255,0.12)` progress bar track and `#fff` fill
+- Use `rgba(255,255,255,0.35)` swipe arrow stroke
+
+If `fetch_unsplash()` returns `None` for the Hero, fall back to `LIGHT_BG` background — no overlay needed.
+
+### B — Decorative element, right side (Solution + Content slides)
+
+Used for Solution/Gradient slides and Features/Steps slides. The image sits on the right half of the slide; text occupies the left.
+
+```html
+<!-- Solution / Gradient slide: 420×420px rounded image -->
+<img src="{IMAGE_URL}"
+     style="position:absolute;right:72px;top:50%;transform:translateY(-50%);
+            width:420px;height:420px;object-fit:cover;border-radius:24px;
+            z-index:2;opacity:0.92;box-shadow:0 24px 64px rgba(0,0,0,0.3);">
+
+<!-- Content slides (features/steps): 360×480px rounded image -->
+<img src="{IMAGE_URL}"
+     style="position:absolute;right:72px;top:50%;transform:translateY(-50%);
+            width:360px;height:480px;object-fit:cover;border-radius:20px;
+            z-index:2;opacity:0.95;box-shadow:0 16px 48px rgba(0,0,0,0.18);">
+```
+
+When using a decorative element on the right:
+- Restrict content area to the **left 580px** of the slide by adding `max-width:580px` to the content wrapper
+- Do NOT reduce font sizes — keep the mandatory typography scale
+- If content is too long for 580px → remove words from the copy
+
+```html
+<!-- Content wrapper when decorative image is present -->
+<div style="position:relative;z-index:3;max-width:580px;">
+  <!-- tag, headline, body content here -->
+</div>
+```
+
+If `fetch_unsplash()` returns `None` for these slides, render the slide normally at full width — no layout change needed.
+
+---
+
+## Step 4: Derive the Full Color System
 
 ```
 BRAND_PRIMARY   = {main accent}             // Progress bar, icons, tags
@@ -106,14 +204,12 @@ LIGHT_BORDER    = {slightly darker than LIGHT_BG}
 DARK_BG         = {near-black with brand tint}
 ```
 
-**Rules:**
-- LIGHT_BG: tinted off-white complementing the primary
 - DARK_BG: near-black with subtle brand tint (e.g. `#1A1918` or `#0F172A`)
 - Brand gradient: `linear-gradient(165deg, BRAND_DARK 0%, BRAND_PRIMARY 50%, BRAND_LIGHT 100%)`
 
 ---
 
-## Step 3: Set Up Typography
+## Step 5: Set Up Typography
 
 | Style | Heading Font | Body Font |
 |-------|-------------|-----------|
@@ -148,8 +244,6 @@ Apply via CSS classes `.serif` (heading font) and `.sans` (body font) throughout
 
 ## ⚠️ Vertical Alignment — MANDATORY RULES
 
-Use **one rule per slide type** — no exceptions:
-
 | Slide type | `justify-content` | `padding` |
 |---|---|---|
 | Hero (slide 1) | `center` | `100px 90px 140px` |
@@ -160,15 +254,12 @@ Use **one rule per slide type** — no exceptions:
 | How-to / Steps | `center` | `100px 90px 140px` |
 | CTA (last slide) | `center` | `100px 90px 140px` |
 
-**Default is always `center`.** Only use `flex-end` when there are 4 or more list items and content genuinely overflows the centered layout.
-
-Content must **never overlap the progress bar** — the `140px` bottom padding guarantees clearance.
+**Default is always `center`.** `flex-end` only when 4+ list items genuinely overflow.
+Content must **never overlap the progress bar** — `140px` bottom padding guarantees clearance.
 
 ---
 
 ## Slide 1 — Hook Rules
-
-The first slide must stop the scroll in under 1 second.
 
 | Hook format | Example |
 |---|---|
@@ -178,7 +269,6 @@ The first slide must stop the scroll in under 1 second.
 | Resultado concreto | "Esse post gerou 4.200 seguidores em 3 dias" |
 | Inversão de expectativa | "Mais esforço no design = menos alcance" |
 
-**Rules:**
 - Never start with the brand name as headline
 - Hook must promise value that the following slides deliver
 
@@ -189,7 +279,8 @@ The first slide must stop the scroll in under 1 second.
 - Maximum 3 items per list on centered slides
 - Maximum 4 items only on `flex-end` slides
 - Maximum 2 lines per item description
-- If content exceeds limits → split into more slides or simplify text — **NEVER compress**
+- When decorative image is present → max-width 580px for content; remove words before reducing font size
+- If content exceeds limits → split into more slides or simplify — **NEVER compress**
 
 ---
 
@@ -197,45 +288,19 @@ The first slide must stop the scroll in under 1 second.
 
 ### Standard (7 slides — default)
 
-| # | Type | Background | Purpose |
-|---|------|------------|---------|
-| 1 | Hero | LIGHT_BG | Hook — bold statement, logo lockup |
-| 2 | Problem | DARK_BG | Pain point |
-| 3 | Solution | Brand gradient | The answer |
-| 4 | Features | LIGHT_BG | What you get |
-| 5 | Details | DARK_BG | Depth — differentiators |
-| 6 | How-to | LIGHT_BG | Steps — numbered workflow |
-| 7 | CTA | Brand gradient | No arrow. Full progress bar. |
+| # | Type | Background | Image |
+|---|------|------------|-------|
+| 1 | Hero | LIGHT_BG or image+overlay | ✅ Full background |
+| 2 | Problem | DARK_BG | ❌ |
+| 3 | Solution | Brand gradient | ✅ Decorative right |
+| 4 | Features | LIGHT_BG | ✅ Decorative right |
+| 5 | Details | DARK_BG | ❌ |
+| 6 | How-to | LIGHT_BG | ✅ Decorative right |
+| 7 | CTA | Brand gradient | ❌ |
 
-### Listicle (5–10 slides)
+### Listicle / Tutorial / Comparação
 
-| # | Type | Background |
-|---|------|------------|
-| 1 | Hero | LIGHT_BG |
-| 2–N | Item N | Alternating LIGHT/DARK |
-| Last | CTA | Brand gradient |
-
-### Tutorial (7 slides)
-
-| # | Type | Background |
-|---|------|------------|
-| 1 | Hero | LIGHT_BG |
-| 2 | Contexto / Por quê | DARK_BG |
-| 3–5 | Passo 1, 2, 3 | Alternating |
-| 6 | Resultado esperado | DARK_BG |
-| 7 | CTA | Brand gradient |
-
-### Comparação (5 slides)
-
-| # | Type | Background |
-|---|------|------------|
-| 1 | Hero | LIGHT_BG |
-| 2 | Opção A | LIGHT_BG |
-| 3 | Opção B | DARK_BG |
-| 4 | Veredicto | Brand gradient |
-| 5 | CTA | DARK_BG |
-
-**General rules:** start with a hook, end on brand gradient CTA, alternate light/dark.
+Apply image decoration to light-background content slides only. Dark and gradient slides never receive images.
 
 ---
 
@@ -243,16 +308,9 @@ The first slide must stop the scroll in under 1 second.
 
 ### Required Elements on Every Slide
 
-#### 1. Progress Bar (bottom of every slide)
-
-- Position: absolute bottom, full width
-- Track: 6px height, rounded corners
-- Fill: `((slideIndex + 1) / totalSlides) * 100%`
-- Light slides: `rgba(0,0,0,0.08)` track, `BRAND_PRIMARY` fill, `rgba(0,0,0,0.3)` counter
-- Dark/gradient slides: `rgba(255,255,255,0.12)` track, `#fff` fill, `rgba(255,255,255,0.4)` counter
+#### Progress Bar
 
 ```html
-<!-- Replace all values with actual hex/rgba — never leave variable names in HTML -->
 <div style="position:absolute;bottom:0;left:0;right:0;padding:32px 60px 40px;z-index:10;display:flex;align-items:center;gap:20px;">
   <div style="flex:1;height:6px;background:{TRACK_COLOR};border-radius:4px;overflow:hidden;">
     <div style="height:100%;width:{PCT}%;background:{FILL_COLOR};border-radius:4px;"></div>
@@ -261,11 +319,10 @@ The first slide must stop the scroll in under 1 second.
 </div>
 ```
 
-#### 2. Swipe Arrow (every slide EXCEPT the last)
+- Light slides: track `rgba(0,0,0,0.08)`, fill `BRAND_PRIMARY`, label `rgba(0,0,0,0.3)`
+- Dark/gradient/image-overlay slides: track `rgba(255,255,255,0.12)`, fill `#fff`, label `rgba(255,255,255,0.4)`
 
-- Position: absolute right edge, full height, 100px wide
-- Light slides: `rgba(0,0,0,0.06)` bg, `rgba(0,0,0,0.25)` stroke
-- Dark/gradient slides: `rgba(255,255,255,0.08)` bg, `rgba(255,255,255,0.35)` stroke
+#### Swipe Arrow (every slide except last)
 
 ```html
 <div style="position:absolute;right:0;top:0;bottom:0;width:100px;z-index:9;display:flex;align-items:center;justify-content:center;background:linear-gradient(to right,transparent,{BG});">
@@ -275,6 +332,9 @@ The first slide must stop the scroll in under 1 second.
 </div>
 ```
 
+- Light slides: bg `rgba(0,0,0,0.06)`, stroke `rgba(0,0,0,0.25)`
+- Dark/gradient/overlay slides: bg `rgba(255,255,255,0.08)`, stroke `rgba(255,255,255,0.35)`
+
 ---
 
 ## Reusable Components
@@ -283,15 +343,13 @@ The first slide must stop the scroll in under 1 second.
 ```html
 <span class="sans" style="display:inline-block;font-size:22px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:{COLOR};margin-bottom:24px;">{TAG TEXT}</span>
 ```
-- Light slides: `BRAND_PRIMARY`
-- Dark/gradient slides: `BRAND_LIGHT` or `rgba(255,255,255,0.6)`
 
 ### Feature list item
 ```html
 <div style="display:flex;align-items:flex-start;gap:20px;padding:16px 0;border-bottom:1px solid {LIGHT_BORDER};">
   <span style="color:{BRAND_PRIMARY};font-size:28px;width:36px;text-align:center;">{icon}</span>
   <div>
-    <div class="sans" style="font-size:40px;font-weight:600;color:{DARK_BG};line-height:1.3;">{Label}</div>
+    <div class="sans" style="font-size:40px;font-weight:600;color:{TEXT_COLOR};line-height:1.3;">{Label}</div>
     <div class="sans" style="font-size:30px;font-weight:400;color:#8A8580;line-height:1.45;">{Description}</div>
   </div>
 </div>
@@ -302,7 +360,7 @@ The first slide must stop the scroll in under 1 second.
 <div style="display:flex;align-items:flex-start;gap:24px;padding:16px 0;border-bottom:1px solid {LIGHT_BORDER};">
   <span class="serif" style="font-size:52px;font-weight:300;color:{BRAND_PRIMARY};min-width:48px;line-height:1;">01</span>
   <div>
-    <div class="sans" style="font-size:40px;font-weight:600;color:{DARK_BG};line-height:1.3;">{Step title}</div>
+    <div class="sans" style="font-size:40px;font-weight:600;color:{TEXT_COLOR};line-height:1.3;">{Step title}</div>
     <div class="sans" style="font-size:30px;font-weight:400;color:#8A8580;line-height:1.45;">{Step description}</div>
   </div>
 </div>
@@ -324,14 +382,12 @@ The first slide must stop the scroll in under 1 second.
 ```
 
 ### Logo Lockup (first and last slides)
-- Icon logo img 56px circle + brand name beside at 26px weight 600
+- Icon logo img 56px circle + brand name at 26px weight 600
 - Or initials: 56px circle BRAND_PRIMARY bg, white letter
 
 ---
 
 ## Line Break Optimization
-
-Headlines must be manually broken into 2–3 lines for visual rhythm.
 
 ❌ `"Por que unir IA e RPA?"`
 ✅ `"Por que unir<br>IA e RPA?"`
@@ -339,8 +395,6 @@ Headlines must be manually broken into 2–3 lines for visual rhythm.
 ---
 
 ## HTML Slide Structure
-
-Each slide is a fully self-contained HTML string. No JavaScript, no interactivity.
 
 ```html
 <!DOCTYPE html>
@@ -363,7 +417,7 @@ Each slide is a fully self-contained HTML string. No JavaScript, no interactivit
       height: 1350px;
       display: flex;
       flex-direction: column;
-      justify-content: center; /* see Vertical Alignment table — default is center */
+      justify-content: center; /* see Vertical Alignment table */
       padding: 100px 90px 140px;
       overflow: hidden;
     }
@@ -373,11 +427,16 @@ Each slide is a fully self-contained HTML string. No JavaScript, no interactivit
 </head>
 <body>
   <div class="slide">
-    <!-- tag label -->
-    <!-- headline -->
-    <!-- subheadline or body content -->
-    <!-- progress bar (absolute) -->
-    <!-- swipe arrow (absolute, all except last) -->
+    <!-- background image (hero only, z-index:0) -->
+    <!-- overlay (hero only, z-index:1) -->
+    <!-- decorative image (solution/content slides, z-index:2, absolute right) -->
+    <!-- content wrapper (z-index:3, max-width:580px when image present) -->
+      <!-- tag label -->
+      <!-- headline -->
+      <!-- subheadline or body content -->
+    <!-- /content wrapper -->
+    <!-- progress bar (absolute, z-index:10) -->
+    <!-- swipe arrow (absolute, z-index:9, all except last) -->
   </div>
 </body>
 </html>
@@ -387,21 +446,61 @@ Each slide is a fully self-contained HTML string. No JavaScript, no interactivit
 
 ## Generation Flow
 
-### Step 1 — Build all slide HTML strings in Python
+### Step 1 — Fetch all Unsplash images upfront
+
+Before building any HTML, fetch all needed images in sequence. Store results in a dict.
 
 ```python
+import os, json, urllib.request, urllib.parse
 from pathlib import Path
-import json
 
-# Build each slide as a Python string
-slide_1_html = """<!DOCTYPE html>..."""
-slide_2_html = """<!DOCTYPE html>..."""
+UNSPLASH_KEY = os.environ.get("UNSPLASH_ACCESS_KEY", "")
+
+def fetch_unsplash(query: str, orientation: str = "portrait") -> str | None:
+    if not UNSPLASH_KEY:
+        return None
+    try:
+        params = urllib.parse.urlencode({
+            "query": query,
+            "orientation": orientation,
+            "per_page": 1,
+            "order_by": "relevant"
+        })
+        req = urllib.request.Request(
+            f"https://api.unsplash.com/search/photos?{params}",
+            headers={"Authorization": f"Client-ID {UNSPLASH_KEY}", "Accept-Version": "v1"}
+        )
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read())
+            results = data.get("results", [])
+            if results:
+                return results[0]["urls"]["regular"]
+    except Exception:
+        pass
+    return None
+
+# Fetch images for each slide that needs one
+# Derive queries from the carousel topic
+images = {
+    "hero":     fetch_unsplash("{topic_query}", orientation="portrait"),
+    "solution": fetch_unsplash("{topic_query}", orientation="landscape"),
+    "features": fetch_unsplash("{topic_query}", orientation="landscape"),
+    "howto":    fetch_unsplash("{topic_query}", orientation="landscape"),
+}
+# Any None value means: render that slide without an image — never raise errors
+```
+
+### Step 2 — Build all slide HTML strings
+
+```python
+# Use images["hero"], images["solution"], etc. when constructing each slide
+# If value is None, omit the <img> tag and render at full width
+slide_1_html = f"""<!DOCTYPE html>..."""
 # ... etc
-
 slides_html = [slide_1_html, slide_2_html, ...]
 ```
 
-### Step 2 — Save JSON output for n8n
+### Step 3 — Save JSON output
 
 ```python
 output = {
@@ -410,20 +509,17 @@ output = {
         for i, html in enumerate(slides_html)
     ]
 }
-
 Path("/home/claude/carousel_output.json").write_text(
     json.dumps(output, ensure_ascii=False), encoding="utf-8"
 )
 print(f"Generated {len(slides_html)} slides.")
 ```
 
-### Step 3 — Copy to output directory
+### Step 4 — Copy and present
 
 ```bash
 cp /home/claude/carousel_output.json /mnt/user-data/outputs/carousel_output.json
 ```
-
-### Step 4 — Present the file
 
 Call `present_files` with `/mnt/user-data/outputs/carousel_output.json`.
 
@@ -434,14 +530,8 @@ Call `present_files` with `/mnt/user-data/outputs/carousel_output.json`.
 ```json
 {
   "slides": [
-    {
-      "slide": 1,
-      "html": "<!DOCTYPE html><html>...</html>"
-    },
-    {
-      "slide": 2,
-      "html": "<!DOCTYPE html><html>...</html>"
-    }
+    { "slide": 1, "html": "<!DOCTYPE html>..." },
+    { "slide": 2, "html": "<!DOCTYPE html>..." }
   ]
 }
 ```
@@ -468,37 +558,54 @@ Call `present_files` with `/mnt/user-data/outputs/carousel_output.json`.
 }
 ```
 
-### Using in n8n
-
-After the AI Agent outputs this JSON:
-
-1. **Code node** — itera `slides` e passa cada `html` adiante
-2. **HTTP Request** — POST para `html2png.dev/api/convert` com o HTML como body (`text/html`), params `width=1080&height=1350&format=png`
-3. **Cloudinary / Google Drive** — recebe a URL PNG retornada pelo html2png
+### n8n Code node — split slides
 
 ```javascript
-// Code node — split slides into individual items
 const { slides } = $input.first().json;
-
 return slides.map(slide => ({
-  json: {
-    slide: slide.slide,
-    html: slide.html
-  }
+  json: { slide: slide.slide, html: slide.html }
 }));
 ```
 
 ---
 
+## Setting Up the Unsplash API Key
+
+### 1. Criar a chave no Unsplash
+1. Acesse [unsplash.com/developers](https://unsplash.com/developers) e crie uma conta
+2. Clique em **New Application**, preencha nome e descrição
+3. Copie o **Access Key** gerado
+
+### 2. Criar a credential no n8n
+1. No n8n, vá em **Settings → Credentials → New Credential**
+2. Escolha o tipo **Header Auth**
+3. Preencha:
+   - **Name:** `Unsplash Access Key` (ou qualquer nome)
+   - **Value:** cole o Access Key copiado do Unsplash
+4. Salve
+
+### 3. Injetar no system prompt do agente
+No nó **AI Agent**, adicione ao final do System Prompt:
+
+```
+Unsplash API Key: {{ $credentials["Unsplash Access Key"].value }}
+```
+
+O agente receberá a chave como texto no contexto e a utilizará ao seguir esta skill.
+
+### Limites do plano gratuito
+- **50 requests/hora** — mais que suficiente para geração de carrosséis
+- Máximo de 3 imagens por carrossel nesta skill (hero + solution + features/steps)
+
+---
+
 ## Design Principles
 
-1. **Every slide is export-ready** — arrow and progress bar are baked into the HTML
-2. **Light/dark alternation** — creates visual rhythm across swipes
-3. **Heading + body font pairing** — display font for impact, body for readability
-4. **Brand-derived palette** — all colors stem from the primary
-5. **Typography is fixed** — same scale on every slide, no exceptions
-6. **Vertical centering by default** — `flex-end` only for 4+ item lists
-7. **Progressive disclosure** — progress bar fills and arrow guides forward
-8. **Last slide is special** — no arrow, full progress bar, clear CTA
-9. **Hook-first copy** — Slide 1 exists to stop the scroll, not introduce the brand
-10. **One JSON output** — all slides as HTML strings, ready for html2png.dev via n8n
+1. **Images are optional enhancements** — slides always render correctly without them
+2. **Hero image creates impact** — dark overlay ensures text legibility at any image
+3. **Decorative images add context** — right-side positioning never competes with copy
+4. **Content always wins** — if image + text don't fit, remove words, never shrink fonts
+5. **Light/dark alternation** — visual rhythm across swipes
+6. **Typography is fixed** — same scale on every slide, no exceptions
+7. **Vertical centering by default** — `flex-end` only for 4+ item lists
+8. **One JSON output** — all slides as HTML strings, ready for html2png.dev via n8n
