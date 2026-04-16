@@ -340,6 +340,7 @@ def pick_layout(previous_layout: str | None = None) -> str:
 <div class="slide" style="justify-content:flex-start;padding:0;">
 
   <img src="{IMAGE_URL}"
+       onerror="this.style.display='none'"
        style="position:absolute;top:0;left:0;right:0;
               width:100%;height:580px;object-fit:cover;
               border-radius:0 0 32px 32px;z-index:1;opacity:0.97;">
@@ -373,6 +374,7 @@ def pick_layout(previous_layout: str | None = None) -> str:
 <div class="slide" style="justify-content:flex-start;padding:0;background:{SLIDE_BG};">
 
   <img src="{IMAGE_URL}"
+       onerror="this.style.display='none'"
        style="position:absolute;top:0;left:0;right:0;
               width:100%;height:680px;object-fit:cover;z-index:1;">
 
@@ -419,6 +421,7 @@ def pick_layout(previous_layout: str | None = None) -> str:
   </div>
 
   <img src="{IMAGE_URL}"
+       onerror="this.style.display='none'"
        style="position:absolute;top:700px;left:0;right:0;bottom:0;
               width:100%;height:650px;object-fit:cover;
               border-radius:32px 32px 0 0;z-index:1;opacity:0.97;">
@@ -440,7 +443,8 @@ def pick_layout(previous_layout: str | None = None) -> str:
 5. **Progress bar lives on `.slide`** (`position:absolute;bottom:0;z-index:10`) — never inside a card or text wrapper
 6. **C2 card: `bottom:100px` is non-negotiable** — ensures progress bar is always visible
 7. **C3 progress bar**: use white track `rgba(255,255,255,0.2)` and white fill `#fff` — it sits over the image
-8. **No image fallback**: if `fetch_unsplash()` returns `None` → remove image tag, set `.slide` to `justify-content:center; padding:100px 90px 140px`
+8. **No image fallback**: if `fetch_unsplash()` returns `None` → remove image tag entirely, set `.slide` to `justify-content:center; padding:100px 90px 140px`, render full-width text
+9. **Always add `onerror` on every `<img>` tag for C1/C2/C3 layouts**: `onerror="this.style.display='none'"` — if the image URL fails to load at render time, the slide hides the broken image and shows the clean background instead of a broken icon
 9. **Orientation**: always `orientation="landscape"` for all C layouts
 
 ---
@@ -636,8 +640,27 @@ Content must **never overlap the progress bar** — `140px` bottom padding guara
 ```
 
 ### Logo Lockup (first and last slides)
-- Icon logo img 56px circle + brand name at 26px weight 600
-- Or initials: 56px circle BRAND_PRIMARY bg, white letter
+
+**Always use the real logo image from the brand URL — never recreate it with text or initials.**
+
+```html
+<!-- Complete logo (CTA/last slide) — full logo, no border-radius, auto width -->
+<img src="{COMPLETE_LOGO_URL}"
+     style="height:52px;width:auto;object-fit:contain;display:block;margin-bottom:16px;"
+     alt="logo">
+
+<!-- Icon logo (hero slide top-left) — icon/mark only -->
+<img src="{ICON_LOGO_URL}"
+     style="height:48px;width:48px;object-fit:contain;display:block;margin-bottom:20px;"
+     alt="logo">
+```
+
+Rules:
+- **Never** apply `border-radius` to logo images — respect the original shape
+- **Never** recreate the logo with text, initials, or colored circles
+- Use `COMPLETE_LOGO_URL` on the CTA/last slide
+- Use `ICON_LOGO_URL` on the Hero slide top-left corner
+- If a logo URL fails to load, omit the logo entirely — do not substitute with text
 
 ---
 
