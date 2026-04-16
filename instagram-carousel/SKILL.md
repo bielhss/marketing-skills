@@ -116,9 +116,12 @@ Bad queries are the #1 reason images feel irrelevant. Follow every rule below wi
 
 ---
 
-#### Rule 1 — Use the pre-validated query library
+#### Rule 1 — Use the pre-validated query library — MANDATORY FIRST STEP
 
-Before writing any query, check if the topic matches an entry below. If it does, **use that exact string** — do not rephrase it.
+**Before writing ANY query, you MUST check the table below.**
+- If the topic matches an entry → **copy that exact string verbatim. Do NOT rephrase, simplify, or translate it.**
+- Only proceed to Rule 2 if the topic genuinely has NO match in either table.
+- Using a self-invented query when a library match exists is a violation of this rule.
 
 **Abstract topics → Illustration queries** (append `"flat illustration"` or `"minimal illustration"` to signal style)
 
@@ -186,7 +189,13 @@ Ask internally:
 
 `RPA`, `IA`, `API`, `ERP`, `technology`, `business`, `nature`, `landscape`, `mountain`, `forest`, `river`, `sky`, `abstract`, `people`, `team`, `success`, `growth`, `digital`, `future`, `innovation`, `background`, `wallpaper`
 
-`RPA`, `IA`, `API` are acronyms unknown to Unsplash tags — they return random unrelated results.
+`RPA`, `IA`, `API` are acronyms unknown to Unsplash — they return random unrelated results.
+`nature`, `mountain`, `forest`, `sky` return scenic photos with zero relevance to tech/business topics.
+
+❌ Real violation examples seen in production:
+- Slide about "automações inteligentes" → query `"sofa outdoors"` — WRONG (unrelated)
+- Slide about "RPA + IA" → query `"mountain stars night"` — WRONG (banned nature term)
+- Correct for both: check library first → `"automation workflow flat illustration"`
 
 ---
 
@@ -301,76 +310,95 @@ These slides place the image in the **top portion** and the text in the **bottom
 #### C1 — Full-width image top, text bottom (odd-indexed content slides: 3, 6 ...)
 
 The slide is divided vertically:
-- **Top zone** (0–700px height): full-width image with rounded bottom corners
-- **Bottom zone** (700px–1350px): text content on slide background color
+- **Top zone** (0–620px): full-width image with rounded bottom corners
+- **Text zone** (640px–1210px): exactly 570px tall, `overflow:hidden` enforced
+- **Progress bar zone** (1210px–1350px): 140px reserved — text zone NEVER enters this area
 
 ```html
 <div class="slide" style="justify-content:flex-start;padding:0;">
 
-  <!-- Full-width image — TOP ZONE, rounded bottom corners -->
+  <!-- Full-width image — TOP ZONE -->
   <img src="{IMAGE_URL}"
        style="position:absolute;top:0;left:0;right:0;
-              width:100%;height:700px;object-fit:cover;
+              width:100%;height:620px;object-fit:cover;
               border-radius:0 0 32px 32px;
               z-index:1;opacity:0.97;">
 
-  <!-- Text content — BOTTOM ZONE, starts below image -->
-  <div style="position:absolute;left:80px;top:740px;right:80px;
-              bottom:140px;display:flex;flex-direction:column;
+  <!-- Text content — BOTTOM ZONE, fixed height, overflow hidden -->
+  <!-- Available: 1350 - 640 (top) - 140 (progress bar) = 570px -->
+  <div style="position:absolute;left:80px;top:640px;right:80px;
+              height:570px;overflow:hidden;
+              display:flex;flex-direction:column;
               justify-content:flex-start;z-index:3;">
-    <!-- tag label -->
-    <!-- headline (max 2 lines at 88px) -->
-    <!-- body text (52px, font-weight:500) -->
+    <!-- tag label (22px + margin ~40px) -->
+    <!-- headline: MAX 2 lines at 88px (~200px) -->
+    <!-- body: MAX 2 lines at 48px (~130px) -->
   </div>
 
-  <!-- Progress bar -->
-  <!-- Swipe arrow -->
+  <!-- Progress bar — z-index:10, always on top -->
+  <!-- Swipe arrow — z-index:9 -->
 </div>
 ```
 
+⚠️ **C1 copy limits** — `overflow:hidden` clips silently, so stay within bounds:
+- Headline: **max 2 lines** at 88px
+- Body: **max 2 lines** at 48px — cut words before exceeding
+
 #### C2 — Image top with floating card overlay (even-indexed content slides: 4 ...)
 
-The image fills the top ~60% and a white/dark card floats at the bottom with a subtle shadow, creating depth.
+The image fills the top ~55% and a card floats at the bottom, overlapping the image edge slightly.
+
+- **Image zone** (0–700px): bleeds full width, no border-radius
+- **Card zone** (620px–1250px): fixed height 630px, `overflow:hidden` enforced
+- **Progress bar zone** (1250px–1350px): 100px reserved — card `bottom` must respect this
 
 ```html
 <div class="slide" style="justify-content:flex-start;padding:0;background:{SLIDE_BG};">
 
-  <!-- Full-width image — bleeds top edge, rounded bottom -->
+  <!-- Full-width image — TOP ZONE -->
   <img src="{IMAGE_URL}"
        style="position:absolute;top:0;left:0;right:0;
-              width:100%;height:780px;object-fit:cover;
+              width:100%;height:700px;object-fit:cover;
               z-index:1;">
 
-  <!-- Floating card — overlaps bottom of image slightly -->
-  <div style="position:absolute;left:60px;right:60px;top:680px;bottom:100px;
+  <!-- Floating card — overlaps image bottom edge by ~80px -->
+  <!-- bottom:100px ensures progress bar always visible below card -->
+  <div style="position:absolute;left:60px;right:60px;
+              top:620px;bottom:100px;
               background:{CARD_BG};border-radius:28px;
               box-shadow:0 -8px 40px rgba(0,0,0,0.18);
-              padding:52px 60px 60px;
+              padding:44px 56px 44px;
+              overflow:hidden;
               display:flex;flex-direction:column;justify-content:flex-start;
               z-index:4;">
-    <!-- tag label -->
-    <!-- headline (max 2 lines at 88px) -->
-    <!-- body text (52px, font-weight:500) -->
+    <!-- tag label (22px + margin ~40px) -->
+    <!-- headline: MAX 2 lines at 84px (~190px) -->
+    <!-- body: MAX 2 lines at 44px (~120px) -->
   </div>
 
-  <!-- Progress bar (sits on top of card, z-index:10) -->
-  <!-- Swipe arrow (z-index:9) -->
+  <!-- Progress bar — position:absolute;bottom:0;z-index:10 — ALWAYS outside the card -->
+  <!-- Swipe arrow — z-index:9 -->
 </div>
 ```
 
 **CARD_BG values:**
-- Light slides: `#FFFFFF` or `{LIGHT_BG}` — use `color:#1a1a1a` for text
-- Dark slides: `{DARK_BG}` — use `color:#ffffff` for text
-- Gradient accent: `linear-gradient(135deg, {BRAND_DARK}, {BRAND_PRIMARY})` — use `color:#ffffff`
+- Light slides: `#FFFFFF` — text `#1a1a1a`
+- Dark slides: `{DARK_BG}` — text `#ffffff`
+
+⚠️ **C2 copy limits** — card height is ~530px usable after padding:
+- Headline: **max 2 lines** at 84px
+- Body: **max 2 lines** at 44px — cut words before exceeding
+- `overflow:hidden` on the card prevents content from leaking outside
 
 #### ⚠️ Critical rules for ALL C layouts:
 
-1. **Image and text zones must not share any pixel range** — top zone ends at 700px (C1) or 780px (C2), text starts below
-2. **Never reduce font sizes** — if text overflows its zone, remove words from copy
-3. **If `fetch_unsplash()` returns `None`** → switch `.slide` back to `justify-content:center; padding:100px 90px 140px` and render full width without image zone
-4. **C2 card shadow** always uses `0 -8px 40px rgba(0,0,0,0.18)` — the negative Y creates the "lifting" effect
-5. **Image orientation for C1/C2**: always use `orientation="landscape"` — wide images fill the top banner better than portrait
-6. **Never use B1/B2 (side-by-side) layouts** — all image slides use C1 or C2 exclusively
+1. **Pixel zones must never overlap** — C1 text starts at 640px, C2 card starts at 620px; verify before writing HTML
+2. **Always use `overflow:hidden`** on the text wrapper (C1) and the card (C2) — this is the hard stop against overflow
+3. **Never reduce font sizes** — if content doesn't fit, remove words. Font sizes are fixed by the typography scale
+4. **Progress bar is always `position:absolute;bottom:0;left:0;right:0;z-index:10`** — it lives on `.slide`, NOT inside any card or text wrapper
+5. **C2 card must have `bottom:100px`** — this guarantees the progress bar zone is always visible below the card
+6. **If `fetch_unsplash()` returns `None`** → remove the image tag entirely, set `.slide` to `justify-content:center; padding:100px 90px 140px`, render full-width text layout
+7. **Image orientation**: always `orientation="landscape"` for C1 and C2 — never portrait or squarish
 
 ---
 
